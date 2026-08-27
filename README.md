@@ -1,108 +1,385 @@
-# Smart Pizza Shop Management System
+# Smart Pizza Shop Backend
 
 ## Overview
 
-The Smart Pizza Shop Management System is a commercial application written in Python which is intended to help small and medium-sized pizza shops to manage their day-to-day operations in a simple and efficient manner.
+This repository contains the backend and database layer of a commercial-oriented web platform for businesses that receive customer orders.
 
-The system is designed to offer a graphical user interface (GUI) which can be used for managing products, recipes, customers, orders, ingredients, inventory, payments, and business reports.
+The initial use case is a pizza shop, but the platform is **not limited to pizza or restaurants**. The architecture is designed to support cafes, fast-food businesses, bakeries, sandwich shops, dessert shops, beverage shops, and other order-based businesses.
 
-The primary aim of the project is to develop an application which might actually be used in a real pizza shop and not just serve as an educational management system.
+The platform is designed from the beginning with **multi-tenant, multi-branch, AI-ready, and SaaS-ready architecture** so that multiple independent businesses can use the same platform while keeping their data isolated.
 
-## Main Features
+> Product/brand name is intentionally not finalized yet.
 
-The planned system will include the following features:
+## Product Vision
 
-* Pizza and product management
-* Ingredient management
-* Recipe management
-* Customer management
-* Order management
-* Inventory management
-* Payment management
-* Sales and inventory reports
-* Graphical dashboard
-* User and access management
-* Database backup
-* Automated testing
+The goal is to build more than a traditional CRUD or POS application.
 
-## Innovative Feature
+The platform will connect:
 
-A principal feature of the project is going to be a Smart Inventory and Restocking Recommendation System.
+- Orders
+- Products and variants
+- Recipes and ingredients
+- Inventory and purchasing
+- Kitchen operations
+- Customers
+- Payments and discounts
+- Expenses and financial reporting
+- Analytics
+- Artificial intelligence
+- Business recommendations
 
-The system will link together information about pizza recipes, customer orders, ingredient consumption, and inventory data.
+into one operational platform.
 
-For instance, once an order has been completed, the system will calculate the amount of each ingredient needed according to the recipe and make automatic updates to the inventory.
+## Core Features
 
-The system will likewise be capable of detecting ingredients with low stocks and give restocking suggestions on the basis of the inventory status and sales data.
+### Business and Multi-Tenancy
 
-This feature is intended as a way of reducing ingredient shortfalls, unnecessary buying, and waste of inventory.
+- Multi-tenant architecture
+- Multi-branch support
+- Tenant data isolation
+- PostgreSQL Row-Level Security (RLS)
+- Role-based access control
+- Fine-grained permissions
+- Feature Flags / Tenant Features
+- Branch-specific settings and operations
 
-## Technologies
+### Products and Menu
 
-The project is planned to use:
+- Categories
+- Products
+- Product variants
+- Multiple product sizes
+- Product availability
+- Product options and add-ons
+- Configurable optional/removable ingredients
 
-* Python
-* Object-Oriented Programming (OOP)
-* SQLite
-* Python GUI framework
-* Data analysis and visualization libraries where appropriate
-* PDF report generation
-* Automated testing
+### Recipe and Unit Management
 
-The specific libraries and frameworks will be determined during the development process by means of the project's requirements.
+- Recipes connected to `ProductVariant`
+- Recipe items and ingredient quantities
+- Standard unit system
+- Unit conversion such as kg/g, L/ml, and piece
+- Recipe-driven ingredient consumption
+
+### Orders and Kitchen
+
+- `DINE_IN`
+- `TAKEAWAY`
+- `DELIVERY`
+- Order items
+- Add-ons per order item
+- Order status history
+- Kitchen Order View
+- `PREPARING` workflow
+- Kitchen workload and capacity tracking
+- Dynamic preparation-time estimation
+- Dynamic delivery-time estimation
+
+### Customers
+
+- Customer profiles
+- Multiple customer addresses
+- Order history
+- Order address snapshot
+- Personalized recommendations
+- Frequently Bought Together recommendations
+- Loyalty and rewards
+
+### Inventory
+
+- Current stock
+- Inventory transactions
+- Inventory batches / lots
+- Expiry-date management
+- FEFO support
+- Waste tracking
+- Stock adjustments
+- Inter-branch transfers
+- Low-stock monitoring
+- Smart inventory planning
+- Smart restocking recommendations
+
+### Purchasing and Suppliers
+
+- Supplier management
+- Purchases
+- Purchase items
+- Ingredient purchase costs
+- Supplier performance analysis
+- Supplier price comparison
+- Purchase trends
+
+### Payments, Discounts and Finance
+
+- Cash, card and online payment support
+- Payment status tracking
+- Transaction references
+- Discount codes
+- Discount usage limits
+- Operating expenses
+- Purchase costs as ingredient costs
+- Financial summaries
+- Financial reports
+
+### Analytics and Business Intelligence
+
+- Sales analytics
+- Consumption trend analysis
+- Supplier analysis
+- Waste analysis
+- Daily business summary
+- Business dashboard
+- Busy-hours prediction
+- Product performance analysis
+- Estimated profitability
+- Anomaly detection
+
+## Artificial Intelligence
+
+AI is a core product capability rather than a decorative add-on.
+
+Planned AI capabilities include:
+
+- AI Demand Forecasting
+- AI Smart Inventory & Purchase Planning
+- AI Waste Prediction
+- AI Menu Intelligence
+- AI Kitchen Load & Capacity Prediction
+- Dynamic Preparation / Delivery Prediction
+- AI Customer Recommendations
+- AI Supplier Intelligence
+- AI Anomaly Detection
+- AI Business Assistant
+
+The architecture will distinguish between predictive/analytical models and generative AI capabilities.
+
+AI features will be introduced progressively after reliable business data is available.
+
+## Technology Stack
+
+### Backend
+
+- Python
+- FastAPI
+- Uvicorn
+
+### Database
+
+- PostgreSQL
+- SQLAlchemy
+- Psycopg 3
+- Alembic
+
+### Validation and Configuration
+
+- Pydantic
+- Pydantic Settings
+- Environment variables
+
+### API
+
+- REST API
+- OpenAPI
+- Swagger UI: `/docs`
+- ReDoc: `/redoc`
+
+### Quality and Operations
+
+- Pytest
+- Structured logging
+- Error handling
+- Database transactions
+- Audit logging
+- Docker-ready architecture
+
+## Backend Architecture
+
+The backend follows a layered architecture:
+
+```text
+Client / Frontend
+        |
+        v
+FastAPI Routes
+        |
+        v
+Pydantic Schemas
+        |
+        v
+Service Layer
+        |
+        v
+Repository / Data Access
+        |
+        v
+SQLAlchemy
+        |
+        v
+Psycopg
+        |
+        v
+PostgreSQL
+```
+
+The frontend will live in a separate GitHub repository.
 
 ## Project Structure
 
 ```text
-smart-pizza-shop-management/
+smart-pizza-shop-backend/
 │
 ├── README.md
 ├── requirements.txt
 ├── .gitignore
+├── .env.example
 │
-├── proposal/
-│   └── Smart_Pizza_Shop_Management_System_Proposal.pdf
+├── docs/
+│   ├── proposal/
+│   │   └── ...
+│   └── project-structure.md
 │
 ├── app/
-│   ├── config/
+│   ├── __init__.py
+│   ├── main.py
+│   │
+│   ├── core/
+│   │
 │   ├── database/
+│   │   ├── __init__.py
+│   │   ├── connection.py
+│   │   ├── base.py
+│   │   └── models/
+│   │
 │   ├── models/
+│   ├── schemas/
 │   ├── repositories/
 │   ├── services/
-│   ├── gui/
+│   ├── api/
 │   ├── reports/
 │   └── utils/
 │
-├── assets/
-├── data/
+├── database/
+│
+├── migrations/
+│
 └── tests/
 ```
 
-It is possible to alter the project structure during development if new requirements are discovered.
+See [`docs/project-structure.md`](docs/project-structure.md) for the detailed explanation of each directory.
+
+## Database Approach
+
+The primary database implementation uses **PostgreSQL + SQLAlchemy + Alembic**.
+
+The main application tables will be represented by SQLAlchemy models and managed through Alembic migrations.
+
+The root-level `database/` directory is reserved for PostgreSQL-specific assets that may be better represented as SQL, such as:
+
+- RLS policies
+- PostgreSQL functions
+- Triggers
+- Seed data
+- Other database-specific scripts
+
+This avoids maintaining the same table structure in both raw SQL and ORM models.
+
+## Security
+
+Security is a first-class concern.
+
+Planned protections include:
+
+- Tenant isolation
+- PostgreSQL RLS
+- Authentication
+- Authorization
+- Role-based access control
+- Fine-grained permissions
+- Password hashing
+- Secure environment configuration
+- Audit logs
+- Database constraints and transactions
+
+## Documentation Standards
+
+The project will maintain:
+
+- Meaningful docstrings for public classes and functions
+- Clear API route descriptions
+- Pydantic request and response schemas
+- OpenAPI documentation
+- Swagger UI at `/docs`
+- ReDoc at `/redoc`
+- API documentation
+- Database documentation
+- Architecture documentation
+
+## SaaS-Ready Architecture
+
+The platform is designed to support future commercialization.
+
+The initial implementation will **not** include subscription billing logic, but the architecture will remain ready for:
+
+- Subscription plans
+- Tenant plans
+- Billing
+- Invoices
+- Subscription payments
+- Plan-based feature access
+
+Feature Flags / Tenant Features will also allow capabilities to be enabled or disabled per tenant.
+
+## Development Roadmap
+
+1. Finalize database architecture
+2. Finalize multi-tenant and multi-branch rules
+3. Set up PostgreSQL
+4. Configure SQLAlchemy
+5. Configure Alembic
+6. Implement core database models
+7. Design REST API routes
+8. Implement authentication and authorization
+9. Implement tenant isolation and RLS
+10. Implement products, recipes and units
+11. Implement orders and kitchen workflows
+12. Implement inventory and purchasing
+13. Implement payments, discounts and expenses
+14. Implement analytics and reports
+15. Implement AI capabilities
+16. Add testing, logging and production hardening
+17. Develop the separate frontend repository
+18. Prepare the platform for real-world deployment
 
 ## Development Status
 
-**Status: Initial Development**
+**Status: Active Development**
 
-The project structure has been set up and the development process will be carried out in an incremental manner.
+The project is currently in the environment and architecture setup phase.
 
-Planned development stages include:
+Completed so far:
 
-1. Project setup
-2. Database design
-3. Core models and the object-oriented programming structure
-4. Database repositories
-5. The business logic and services
-6. Graphical user interface
-7. The management of products and recipes
-8. Order management
-9. Inventory management
-10. Dashboard and reports
-11. Recommendations for smart inventory management and for restocking
-12. Testing and final adjustments
+- Project repository initialized
+- Repository structure established
+- Python virtual environment configured
+- Backend dependencies installed
+- PostgreSQL 18.6 installed and running
+- Application PostgreSQL role and database created
+- Environment configuration added
+- SQLAlchemy database connection established successfully
+- SQLAlchemy Declarative Base created
 
-## Project Goal
+## Repositories
 
-This project aims at creating a pizza shop management system which is practical, easy to maintain, and suitable for commercial use, and which can have further features added to it in the future.
+Backend + Database:
 
-Future developments could involve online ordering, delivery management, customer loyalty programmes, advanced analytics, and integration with external services.
+```text
+smart-pizza-shop-backend
+```
+
+Frontend:
+
+```text
+smart-pizza-shop-frontend
+```
+
+The frontend repository will be developed separately after the backend API is established.
