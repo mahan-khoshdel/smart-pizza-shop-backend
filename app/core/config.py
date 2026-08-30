@@ -1,3 +1,4 @@
+from sqlalchemy import URL
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,12 +20,14 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """Build the SQLAlchemy connection URL for PostgreSQL."""
-        return (
-            f"postgresql+psycopg://"
-            f"{self.database_user}:{self.database_password}"
-            f"@{self.database_host}:{self.database_port}"
-            f"/{self.database_name}"
-        )
+        return URL.create(
+            drivername="postgresql+psycopg",
+            username=self.database_user,
+            password=self.database_password,
+            host=self.database_host,
+            port=self.database_port,
+            database=self.database_name,
+        ).render_as_string(hide_password=False)
 
 
 settings = Settings()
