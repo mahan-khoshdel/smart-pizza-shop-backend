@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.database.base import Base
 
 # Import all models so SQLAlchemy registers them in Base.metadata.
-from app.database.models import Tenant  # noqa: F401
+from app.database.models import Branch, Tenant  # noqa: F401
 
 
 config = context.config
