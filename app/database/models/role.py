@@ -18,6 +18,11 @@ class Role(Base):
             "name",
             name="uq_roles_tenant_name",
         ),
+        UniqueConstraint(
+            "tenant_id",
+            "id",
+            name="uq_roles_tenant_id",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(

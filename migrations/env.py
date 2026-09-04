@@ -14,6 +14,7 @@ from app.database.models import (
     RolePermission,
     Tenant,
     User,
+    UserRole,
 )  # noqa: F401
 
 config = context.config
