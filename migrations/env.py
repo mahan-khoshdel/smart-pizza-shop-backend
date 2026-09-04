@@ -14,6 +14,7 @@ from app.database.models import (
     RolePermission,
     Tenant,
     User,
+    UserBranch,
     UserRole,
 )  # noqa: F401
 

@@ -5,6 +5,7 @@ from app.database.models.role_permission import RolePermission
 from app.database.models.tenant import Tenant
 from app.database.models.user import User
 from app.database.models.user_role import UserRole
+from app.database.models.user_branch import UserBranch
 
 __all__ = [
     "Branch",
@@ -14,4 +15,5 @@ __all__ = [
     "Tenant",
     "User",
     "UserRole",
+    "UserBranch",
 ]
