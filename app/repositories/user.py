@@ -24,3 +24,16 @@ class UserRepository:
         )
 
         return self.db.scalar(statement)
+
+    def get_by_id(
+        self,
+        user_id: UUID,
+        tenant_id: UUID,
+    ) -> User | None:
+        """Find a user by ID within a specific tenant."""
+        statement = select(User).where(
+            User.id == user_id,
+            User.tenant_id == tenant_id,
+        )
+
+        return self.db.scalar(statement)
