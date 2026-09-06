@@ -9,6 +9,7 @@ from app.database.base import Base
 # Import all models so SQLAlchemy registers them in Base.metadata.
 from app.database.models import (
     Branch,
+    Category,
     Permission,
     Role,
     RolePermission,
