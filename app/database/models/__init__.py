@@ -2,6 +2,7 @@ from app.database.models.branch import Branch
 from app.database.models.category import Category
 from app.database.models.permission import Permission
 from app.database.models.product import Product
+from app.database.models.product_variant import ProductVariant
 from app.database.models.role import Role
 from app.database.models.role_permission import RolePermission
 from app.database.models.tenant import Tenant
@@ -14,6 +15,7 @@ __all__ = [
     "Category",
     "Permission",
     "Product",
+    "ProductVariant",
     "Role",
     "RolePermission",
     "Tenant",

@@ -12,6 +12,7 @@ from app.database.models import (
     Category,
     Permission,
     Product,
+    ProductVariant,
     Role,
     RolePermission,
     Tenant,
