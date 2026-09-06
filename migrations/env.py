@@ -14,6 +14,7 @@ from app.database.models import (
     Permission,
     Product,
     ProductVariant,
+    Recipe,
     Role,
     RolePermission,
     Tenant,
