@@ -11,6 +11,7 @@ from app.database.models import (
     Branch,
     Category,
     Permission,
+    Product,
     Role,
     RolePermission,
     Tenant,

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -33,10 +33,10 @@ class UserBranch(Base):
         nullable=False,
     )
 
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "branch_id",
-            name="uq_user_branches_user_branch",
-        ),
-    )
+
+Index(
+    "ix_user_branches_user_primary",
+    UserBranch.user_id,
+    unique=True,
+    postgresql_where=text("is_primary = true"),
+)
