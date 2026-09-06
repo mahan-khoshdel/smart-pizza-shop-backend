@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user_data
 from app.core.dependencies import get_db
+from app.core.permissions import require_permission
 from app.schemas.auth import LoginRequest
 from app.services.auth import login_user
 
@@ -42,4 +43,14 @@ def get_me(
     return {
         "user_id": str(current_user["user_id"]),
         "tenant_id": str(current_user["tenant_id"]),
+    }
+
+
+@router.get("/test-permission")
+def test_permission(
+    _: None = Depends(require_permission("orders.read")),
+) -> dict[str, str]:
+    """Test the orders.read permission."""
+    return {
+        "message": "You have permission to read orders."
     }
