@@ -41,6 +41,15 @@ class InventoryBatch(Base):
         nullable=False,
         index=True,
     )
+    
+    purchase_item_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            "purchase_items.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=False,
+        index=True,
+    )
 
     batch_number: Mapped[str] = mapped_column(
         String(100),
