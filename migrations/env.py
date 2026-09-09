@@ -18,6 +18,7 @@ from app.database.models import (
     Product,
     ProductVariant,
     Purchase,
+    PurchaseItem,
     Recipe,
     RecipeItem,
     Role,

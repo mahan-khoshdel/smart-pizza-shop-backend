@@ -8,6 +8,7 @@ from app.database.models.permission import Permission
 from app.database.models.product import Product
 from app.database.models.product_variant import ProductVariant
 from app.database.models.purchase import Purchase
+from app.database.models.purchase_item import PurchaseItem
 from app.database.models.recipe import Recipe
 from app.database.models.recipe_item import RecipeItem
 from app.database.models.role import Role
@@ -29,6 +30,7 @@ __all__ = [
     "Product",
     "ProductVariant",
     "Purchase",
+    "PurchaseItem",
     "Recipe",
     "RecipeItem",
     "Role",
