@@ -1,6 +1,7 @@
 from app.database.models.branch import Branch
 from app.database.models.category import Category
 from app.database.models.ingredient import Ingredient
+from app.database.models.inventory_batch import InventoryBatch
 from app.database.models.inventory_item import InventoryItem
 from app.database.models.inventory_movement import InventoryMovement
 from app.database.models.permission import Permission
@@ -19,6 +20,7 @@ __all__ = [
     "Branch",
     "Category",
     "Ingredient",
+    "InventoryBatch",
     "InventoryItem",
     "InventoryMovement",
     "Permission",

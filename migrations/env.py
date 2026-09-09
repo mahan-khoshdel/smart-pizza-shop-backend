@@ -11,6 +11,7 @@ from app.database.models import (
     Branch,
     Category,
     Ingredient,
+    InventoryBatch,
     InventoryItem,
     InventoryMovement,
     Permission,
