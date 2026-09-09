@@ -21,6 +21,7 @@ from app.database.models import (
     RecipeItem,
     Role,
     RolePermission,
+    Supplier,
     Tenant,
     User,
     UserBranch,

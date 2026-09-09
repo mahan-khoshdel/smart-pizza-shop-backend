@@ -11,6 +11,7 @@ from app.database.models.recipe import Recipe
 from app.database.models.recipe_item import RecipeItem
 from app.database.models.role import Role
 from app.database.models.role_permission import RolePermission
+from app.database.models.supplier import Supplier
 from app.database.models.tenant import Tenant
 from app.database.models.user import User
 from app.database.models.user_branch import UserBranch
@@ -30,6 +31,7 @@ __all__ = [
     "RecipeItem",
     "Role",
     "RolePermission",
+    "Supplier",
     "Tenant",
     "User",
     "UserBranch",
