@@ -12,6 +12,7 @@ from app.database.models import (
     Category,
     Ingredient,
     InventoryItem,
+    InventoryMovement,
     Permission,
     Product,
     ProductVariant,
