@@ -26,6 +26,15 @@ class InventoryMovement(Base):
         nullable=False,
         index=True,
     )
+    
+    inventory_batch_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            "inventory_batches.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
 
     movement_type: Mapped[str] = mapped_column(
         Enum(
