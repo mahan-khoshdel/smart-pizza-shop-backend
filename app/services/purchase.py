@@ -14,6 +14,7 @@ from app.database.models.purchase_item import PurchaseItem
 from app.repositories.branch import BranchRepository
 from app.repositories.supplier import SupplierRepository
 from app.schemas.purchase import PurchaseItemCreate
+from app.schemas.purchase_receive import PurchaseReceiveItem
 from app.utils.units import convert_quantity
 
 
@@ -36,6 +37,7 @@ def receive_purchase(
     db: Session,
     purchase_id: UUID,
     tenant_id: UUID,
+    receive_items: list[PurchaseReceiveItem],
 ) -> None:
     """Receive a purchase and update inventory."""
 
@@ -69,8 +71,26 @@ def receive_purchase(
             detail="Purchase has no items.",
         )
 
+    receive_items_by_id = {
+        item.purchase_item_id: item
+        for item in receive_items
+    }
+
+    purchase_item_ids = {item.id for item in purchase_items}
+
+    if set(receive_items_by_id.keys()) != purchase_item_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Receive data must contain exactly one batch "
+                "for each purchase item."
+            ),
+        )
+
     try:
         for purchase_item in purchase_items:
+            receive_item = receive_items_by_id[purchase_item.id]
+
             ingredient = db.get(
                 Ingredient,
                 purchase_item.ingredient_id,
@@ -104,12 +124,16 @@ def receive_purchase(
             )
 
             if purchase_item.unit == "KILOGRAM" and ingredient.base_unit == "GRAM":
-                base_cost_per_unit = purchase_item.unit_cost / Decimal("1000")
+                base_cost_per_unit = (
+                    purchase_item.unit_cost / Decimal("1000")
+                )
             elif (
                 purchase_item.unit == "LITER"
                 and ingredient.base_unit == "MILLILITER"
             ):
-                base_cost_per_unit = purchase_item.unit_cost / Decimal("1000")
+                base_cost_per_unit = (
+                    purchase_item.unit_cost / Decimal("1000")
+                )
             else:
                 base_cost_per_unit = purchase_item.unit_cost
 
@@ -118,15 +142,19 @@ def receive_purchase(
             batch = InventoryBatch(
                 inventory_item_id=inventory_item.id,
                 purchase_item_id=purchase_item.id,
-                batch_number=f"PUR-{purchase.purchase_number}-{purchase_item.id}",
+                batch_number=receive_item.batch_number,
                 quantity=base_quantity,
                 cost_per_unit=base_cost_per_unit,
+                expires_at=receive_item.expires_at,
             )
 
             db.add(batch)
-            
+            db.flush()
+
             movement = InventoryMovement(
                 inventory_item_id=inventory_item.id,
+                inventory_batch_id=batch.id,
+                purchase_item_id=purchase_item.id,
                 movement_type="PURCHASE",
                 quantity=base_quantity,
                 note=f"Purchase {purchase.purchase_number}",
@@ -141,8 +169,8 @@ def receive_purchase(
     except Exception:
         db.rollback()
         raise
-    
-    
+
+
 def create_purchase(
     db: Session,
     tenant_id: UUID,

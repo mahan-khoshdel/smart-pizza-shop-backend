@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_user_data
 from app.core.dependencies import get_db
 from app.schemas.purchase import PurchaseCreate
+from app.schemas.purchase_receive import PurchaseReceiveRequest
 from app.services.purchase import create_purchase, receive_purchase
 
 
@@ -41,17 +42,15 @@ def create_purchase_endpoint(
 @router.post("/{purchase_id}/receive")
 def receive_purchase_endpoint(
     purchase_id: UUID,
+    receive_data: PurchaseReceiveRequest,
     current_user: dict[str, UUID] = Depends(get_current_user_data),
     db: Session = Depends(get_db),
-) -> dict[str, str]:
-    """Receive a draft purchase and update inventory."""
-
+):
     receive_purchase(
         db=db,
         purchase_id=purchase_id,
         tenant_id=current_user["tenant_id"],
+        receive_items=receive_data.items,
     )
 
-    return {
-        "message": "Purchase received successfully.",
-    }
+    return {"message": "Purchase received successfully."}

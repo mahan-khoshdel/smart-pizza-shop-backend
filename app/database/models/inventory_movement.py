@@ -26,10 +26,19 @@ class InventoryMovement(Base):
         nullable=False,
         index=True,
     )
-    
+
     inventory_batch_id: Mapped[UUID | None] = mapped_column(
         ForeignKey(
             "inventory_batches.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    purchase_item_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            "purchase_items.id",
             ondelete="RESTRICT",
         ),
         nullable=True,
