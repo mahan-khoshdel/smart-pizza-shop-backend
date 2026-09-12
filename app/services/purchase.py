@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -90,6 +91,23 @@ def receive_purchase(
     try:
         for purchase_item in purchase_items:
             receive_item = receive_items_by_id[purchase_item.id]
+            
+            if receive_item.expires_at is not None:
+                expires_at = receive_item.expires_at
+
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+                now = datetime.now(timezone.utc)
+
+                if expires_at <= now:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"Expiry date for batch "
+                            f"'{receive_item.batch_number}' must be in the future."
+                        ),
+                    )
 
             ingredient = db.get(
                 Ingredient,
