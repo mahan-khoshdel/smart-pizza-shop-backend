@@ -10,6 +10,8 @@ from app.database.base import Base
 from app.database.models import (
     Branch,
     Category,
+    Customer,
+    CustomerAddress,
     Ingredient,
     InventoryBatch,
     InventoryItem,
