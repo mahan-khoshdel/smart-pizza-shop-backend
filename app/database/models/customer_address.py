@@ -4,9 +4,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
+    Index,
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,6 +20,21 @@ class CustomerAddress(Base):
     """Represent an address belonging to a customer."""
 
     __tablename__ = "customer_addresses"
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "customer_id"],
+            ["customers.tenant_id", "customers.id"],
+            name="fk_customer_addresses_customer_tenant",
+            ondelete="RESTRICT",
+        ),
+        Index(
+            "ix_customer_addresses_customer_default",
+            "customer_id",
+            unique=True,
+            postgresql_where=text("is_default = true"),
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         primary_key=True,
@@ -33,10 +51,6 @@ class CustomerAddress(Base):
     )
 
     customer_id: Mapped[UUID] = mapped_column(
-        ForeignKey(
-            "customers.id",
-            ondelete="RESTRICT",
-        ),
         nullable=False,
         index=True,
     )
