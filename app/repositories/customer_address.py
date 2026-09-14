@@ -42,3 +42,24 @@ class CustomerAddressRepository:
         )
 
         return self.db.scalar(statement)
+
+    def get_all(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+    ) -> list[CustomerAddress]:
+        """Return all addresses of a customer within a tenant."""
+
+        statement = (
+            select(CustomerAddress)
+            .where(
+                CustomerAddress.tenant_id == tenant_id,
+                CustomerAddress.customer_id == customer_id,
+            )
+            .order_by(
+                CustomerAddress.is_default.desc(),
+                CustomerAddress.created_at.asc(),
+            )
+        )
+
+        return list(self.db.scalars(statement).all())

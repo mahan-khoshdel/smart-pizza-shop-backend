@@ -15,6 +15,18 @@ class CustomerAddressCreate(BaseModel):
     is_default: bool = False
 
 
+class CustomerAddressUpdate(BaseModel):
+    """Represent customer address update data."""
+
+    label: str | None = None
+    recipient_name: str | None = None
+    phone: str | None = None
+    address_line: str | None = None
+    city: str | None = None
+    postal_code: str | None = None
+    is_default: bool | None = None
+
+
 class CustomerAddressResponse(BaseModel):
     """Represent a customer address API response."""
 
