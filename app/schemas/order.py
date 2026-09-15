@@ -1,0 +1,50 @@
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
+
+from app.database.models.order import OrderStatus, OrderType
+
+
+class OrderItemCreate(BaseModel):
+    product_variant_id: UUID
+    quantity: int
+
+
+class OrderCreate(BaseModel):
+    branch_id: UUID
+    customer_id: UUID | None = None
+    order_number: str
+    order_type: OrderType
+    note: str | None = None
+    items: list[OrderItemCreate]
+
+
+class OrderItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_variant_id: UUID
+    quantity: int
+    unit_price: int
+    total_price: int
+
+
+class OrderResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tenant_id: UUID
+    branch_id: UUID
+    customer_id: UUID | None
+    order_number: str
+    order_type: OrderType
+    status: OrderStatus
+    note: str | None
+    subtotal: int
+    discount_total: int
+    tax_total: int
+    total: int
+    
+
+class OrderStatusUpdate(BaseModel):
+    status: OrderStatus
