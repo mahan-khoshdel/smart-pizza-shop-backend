@@ -345,7 +345,7 @@ def update_order_status(
     tenant_id: UUID,
     order_id: UUID,
     new_status: OrderStatus,
-) -> Order:
+) -> dict:
     """
     Update an order status according to the allowed order workflow.
     """
@@ -395,7 +395,103 @@ def update_order_status(
         db.commit()
         db.refresh(order)
 
-        return order
+        items = repository.get_items(
+            order_id=order.id,
+        )
+
+        return {
+            "id": order.id,
+            "tenant_id": order.tenant_id,
+            "branch_id": order.branch_id,
+            "customer_id": order.customer_id,
+            "order_number": order.order_number,
+            "order_type": order.order_type,
+            "status": order.status,
+            "note": order.note,
+            "delivery_recipient_name": order.delivery_recipient_name,
+            "delivery_phone": order.delivery_phone,
+            "delivery_address_line": order.delivery_address_line,
+            "delivery_city": order.delivery_city,
+            "delivery_postal_code": order.delivery_postal_code,
+            "subtotal": order.subtotal,
+            "discount_total": order.discount_total,
+            "tax_total": order.tax_total,
+            "total": order.total,
+            "items": items,
+        }
+
+    except Exception:
+        db.rollback()
+        raise
+    
+    
+def cancel_order(
+    db: Session,
+    tenant_id: UUID,
+    order_id: UUID,
+) -> dict:
+    """
+    Cancel an order when its current status allows cancellation.
+    """
+
+    repository = OrderRepository(db)
+
+    order = repository.get_by_id(
+        order_id=order_id,
+        tenant_id=tenant_id,
+    )
+
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found.",
+        )
+
+    cancellable_statuses = {
+        OrderStatus.REGISTERED,
+        OrderStatus.PREPARING,
+        OrderStatus.READY,
+    }
+
+    if order.status not in cancellable_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Order cannot be cancelled from status "
+                f"{order.status.value}."
+            ),
+        )
+
+    try:
+        order.status = OrderStatus.CANCELLED
+
+        db.commit()
+        db.refresh(order)
+
+        items = repository.get_items(
+            order_id=order.id,
+        )
+
+        return {
+            "id": order.id,
+            "tenant_id": order.tenant_id,
+            "branch_id": order.branch_id,
+            "customer_id": order.customer_id,
+            "order_number": order.order_number,
+            "order_type": order.order_type,
+            "status": order.status,
+            "note": order.note,
+            "delivery_recipient_name": order.delivery_recipient_name,
+            "delivery_phone": order.delivery_phone,
+            "delivery_address_line": order.delivery_address_line,
+            "delivery_city": order.delivery_city,
+            "delivery_postal_code": order.delivery_postal_code,
+            "subtotal": order.subtotal,
+            "discount_total": order.discount_total,
+            "tax_total": order.tax_total,
+            "total": order.total,
+            "items": items,
+        }
 
     except Exception:
         db.rollback()

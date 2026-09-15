@@ -12,6 +12,7 @@ from app.schemas.order import (
     OrderStatusUpdate,
 )
 from app.services.order import (
+    cancel_order,
     create_order,
     get_order,
     get_orders,
@@ -103,4 +104,24 @@ def update_order_status_endpoint(
         tenant_id=current_user["tenant_id"],
         order_id=order_id,
         new_status=status_data.status,
+    )
+    
+    
+@router.post(
+    "/{order_id}/cancel",
+    response_model=OrderResponse,
+)
+def cancel_order_endpoint(
+    order_id: UUID,
+    current_user=Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Cancel an order when its current status allows cancellation.
+    """
+
+    return cancel_order(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        order_id=order_id,
     )
