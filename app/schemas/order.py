@@ -13,6 +13,7 @@ class OrderItemCreate(BaseModel):
 class OrderCreate(BaseModel):
     branch_id: UUID
     customer_id: UUID | None = None
+    customer_address_id: UUID | None = None
     order_number: str
     order_type: OrderType
     note: str | None = None
@@ -36,6 +37,11 @@ class OrderResponse(BaseModel):
     tenant_id: UUID
     branch_id: UUID
     customer_id: UUID | None
+    delivery_recipient_name: str | None
+    delivery_phone: str | None
+    delivery_address_line: str | None
+    delivery_city: str | None
+    delivery_postal_code: str | None
     order_number: str
     order_type: OrderType
     status: OrderStatus

@@ -68,6 +68,31 @@ class Order(Base):
         nullable=True,
         index=True,
     )
+    
+    delivery_recipient_name: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+    )
+
+    delivery_phone: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+
+    delivery_address_line: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    delivery_city: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    delivery_postal_code: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
 
     order_number: Mapped[str] = mapped_column(
         String(50),

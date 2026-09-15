@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database.models.branch import Branch
 from app.database.models.customer import Customer
+from app.database.models.customer_address import CustomerAddress
 from app.database.models.order import Order, OrderItem, OrderStatus
 from app.database.models.product_variant import ProductVariant
 from app.repositories.order import OrderRepository
@@ -20,8 +21,9 @@ def create_order(
     """
     Create a new order for the current tenant.
 
-    The service validates the branch, optional customer, and all
-    product variants before creating the order and its items.
+    The service validates the branch, optional customer,
+    optional customer address, and all product variants
+    before creating the order and its items.
     """
 
     order_repository = OrderRepository(db)
@@ -74,7 +76,46 @@ def create_order(
             )
 
     # ---------------------------------------------------------
-    # 4. Order must contain at least one item
+    # 4. Check delivery address
+    # ---------------------------------------------------------
+    delivery_address = None
+
+    if data.order_type == "DELIVERY":
+        if data.customer_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Delivery orders require a customer.",
+            )
+
+        if data.customer_address_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Delivery orders require a customer address.",
+            )
+
+    if data.customer_address_id is not None:
+        if data.customer_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Customer is required when address is provided.",
+            )
+
+        delivery_address = db.scalar(
+            select(CustomerAddress).where(
+                CustomerAddress.id == data.customer_address_id,
+                CustomerAddress.customer_id == data.customer_id,
+                CustomerAddress.tenant_id == tenant_id,
+            )
+        )
+
+        if delivery_address is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Customer address not found.",
+            )
+
+    # ---------------------------------------------------------
+    # 5. Order must contain at least one item
     # ---------------------------------------------------------
     if not data.items:
         raise HTTPException(
@@ -87,7 +128,7 @@ def create_order(
 
     try:
         # -----------------------------------------------------
-        # 5. Validate every product variant and calculate prices
+        # 6. Validate every product variant and calculate prices
         # -----------------------------------------------------
         for item_data in data.items:
 
@@ -100,6 +141,7 @@ def create_order(
             product_variant = db.scalar(
                 select(ProductVariant).where(
                     ProductVariant.id == item_data.product_variant_id,
+                    ProductVariant.tenant_id == tenant_id,
                 )
             )
 
@@ -109,6 +151,15 @@ def create_order(
                     detail=(
                         "Product variant not found: "
                         f"{item_data.product_variant_id}"
+                    ),
+                )
+
+            if not product_variant.is_available:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Product variant is not available: "
+                        f"{product_variant.id}"
                     ),
                 )
 
@@ -127,7 +178,7 @@ def create_order(
             )
 
         # -----------------------------------------------------
-        # 6. Create order
+        # 7. Create order with delivery address snapshot
         # -----------------------------------------------------
         order = Order(
             tenant_id=tenant_id,
@@ -137,6 +188,31 @@ def create_order(
             order_type=data.order_type,
             status=OrderStatus.REGISTERED,
             note=data.note,
+            delivery_recipient_name=(
+                delivery_address.recipient_name
+                if delivery_address is not None
+                else None
+            ),
+            delivery_phone=(
+                delivery_address.phone
+                if delivery_address is not None
+                else None
+            ),
+            delivery_address_line=(
+                delivery_address.address_line
+                if delivery_address is not None
+                else None
+            ),
+            delivery_city=(
+                delivery_address.city
+                if delivery_address is not None
+                else None
+            ),
+            delivery_postal_code=(
+                delivery_address.postal_code
+                if delivery_address is not None
+                else None
+            ),
             subtotal=subtotal,
             discount_total=0,
             tax_total=0,
@@ -147,7 +223,7 @@ def create_order(
         db.flush()
 
         # -----------------------------------------------------
-        # 7. Attach order items
+        # 8. Attach order items
         # -----------------------------------------------------
         for order_item in order_items:
             order_item.order_id = order.id
