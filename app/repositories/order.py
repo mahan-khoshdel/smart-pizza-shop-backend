@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database.models.order import Order
+from app.database.models.order import Order, OrderItem
 
 
 class OrderRepository:
@@ -21,6 +21,18 @@ class OrderRepository:
         )
 
         return self.db.scalar(statement)
+
+    def get_items(
+        self,
+        order_id: UUID,
+    ) -> list[OrderItem]:
+        statement = (
+            select(OrderItem)
+            .where(OrderItem.order_id == order_id)
+            .order_by(OrderItem.created_at.asc())
+        )
+
+        return list(self.db.scalars(statement).all())
 
     def get_by_order_number(
         self,

@@ -241,28 +241,64 @@ def create_order(
     except Exception:
         db.rollback()
         raise
-    
-    
+
+
 def get_orders(
     db: Session,
     tenant_id: UUID,
-) -> list[Order]:
+) -> list[dict]:
     """
-    Return all orders belonging to the current tenant.
+    Return all orders with their order items
+    for the current tenant.
     """
 
     repository = OrderRepository(db)
 
-    return repository.get_all(tenant_id=tenant_id)
+    orders = repository.get_all(
+        tenant_id=tenant_id,
+    )
+
+    result = []
+
+    for order in orders:
+        items = repository.get_items(
+            order_id=order.id,
+        )
+
+        result.append(
+            {
+                "id": order.id,
+                "tenant_id": order.tenant_id,
+                "branch_id": order.branch_id,
+                "customer_id": order.customer_id,
+                "order_number": order.order_number,
+                "order_type": order.order_type,
+                "status": order.status,
+                "note": order.note,
+                "delivery_recipient_name": order.delivery_recipient_name,
+                "delivery_phone": order.delivery_phone,
+                "delivery_address_line": order.delivery_address_line,
+                "delivery_city": order.delivery_city,
+                "delivery_postal_code": order.delivery_postal_code,
+                "subtotal": order.subtotal,
+                "discount_total": order.discount_total,
+                "tax_total": order.tax_total,
+                "total": order.total,
+                "items": items,
+            }
+        )
+
+    return result
 
 
 def get_order(
     db: Session,
     tenant_id: UUID,
     order_id: UUID,
-) -> Order:
+) -> dict:
     """
-    Return a single order belonging to the current tenant.
+    Return a single order with its order items
+    for the current tenant.
     """
 
     repository = OrderRepository(db)
@@ -278,7 +314,30 @@ def get_order(
             detail="Order not found.",
         )
 
-    return order
+    items = repository.get_items(
+        order_id=order.id,
+    )
+
+    return {
+        "id": order.id,
+        "tenant_id": order.tenant_id,
+        "branch_id": order.branch_id,
+        "customer_id": order.customer_id,
+        "order_number": order.order_number,
+        "order_type": order.order_type,
+        "status": order.status,
+        "note": order.note,
+        "delivery_recipient_name": order.delivery_recipient_name,
+        "delivery_phone": order.delivery_phone,
+        "delivery_address_line": order.delivery_address_line,
+        "delivery_city": order.delivery_city,
+        "delivery_postal_code": order.delivery_postal_code,
+        "subtotal": order.subtotal,
+        "discount_total": order.discount_total,
+        "tax_total": order.tax_total,
+        "total": order.total,
+        "items": items,
+    }
 
 
 def update_order_status(

@@ -37,19 +37,24 @@ class OrderResponse(BaseModel):
     tenant_id: UUID
     branch_id: UUID
     customer_id: UUID | None
+
+    order_number: str
+    order_type: OrderType
+    status: OrderStatus
+    note: str | None
+
     delivery_recipient_name: str | None
     delivery_phone: str | None
     delivery_address_line: str | None
     delivery_city: str | None
     delivery_postal_code: str | None
-    order_number: str
-    order_type: OrderType
-    status: OrderStatus
-    note: str | None
+
     subtotal: int
     discount_total: int
     tax_total: int
     total: int
+
+    items: list[OrderItemResponse]
     
 
 class OrderStatusUpdate(BaseModel):
