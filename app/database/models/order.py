@@ -158,6 +158,11 @@ class Order(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    
+    inventory_consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
 
 class OrderItem(Base):

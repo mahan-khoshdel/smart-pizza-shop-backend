@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from datetime import datetime
+from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
 
 from app.database.models.order import OrderStatus, OrderType
@@ -53,9 +55,21 @@ class OrderResponse(BaseModel):
     discount_total: int
     tax_total: int
     total: int
+    
+    inventory_consumed_at: datetime | None
 
     items: list[OrderItemResponse]
     
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
+
+
+class OrderIngredientRequirementResponse(BaseModel):
+    ingredient_id: UUID
+    quantity: Decimal
+
+
+class OrderIngredientRequirementsResponse(BaseModel):
+    order_id: UUID
+    requirements: list[OrderIngredientRequirementResponse]

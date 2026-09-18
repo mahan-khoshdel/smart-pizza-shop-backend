@@ -5,17 +5,19 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user_data
 from app.database.connection import get_db
-from app.database.models.order import OrderStatus
 from app.schemas.order import (
     OrderCreate,
+    OrderIngredientRequirementsResponse,
     OrderResponse,
     OrderStatusUpdate,
 )
 from app.services.order import (
     cancel_order,
+    consume_order_inventory,
     create_order,
     get_order,
     get_orders,
+    get_order_ingredient_requirements,
     update_order_status,
 )
 
@@ -46,7 +48,7 @@ def create_order_endpoint(
         data=order_data,
     )
 
-    
+
 @router.get(
     "",
     response_model=list[OrderResponse],
@@ -66,25 +68,25 @@ def get_orders_endpoint(
 
 
 @router.get(
-    "/{order_id}",
-    response_model=OrderResponse,
+    "/{order_id}/ingredient-requirements",
+    response_model=OrderIngredientRequirementsResponse,
 )
-def get_order_endpoint(
+def get_order_ingredient_requirements_endpoint(
     order_id: UUID,
     current_user=Depends(get_current_user_data),
     db: Session = Depends(get_db),
 ):
     """
-    Return a single order for the current tenant.
+    Calculate ingredient requirements for an order from its recipes.
     """
 
-    return get_order(
+    return get_order_ingredient_requirements(
         db=db,
         tenant_id=current_user["tenant_id"],
         order_id=order_id,
     )
 
-    
+
 @router.patch(
     "/{order_id}/status",
     response_model=OrderResponse,
@@ -105,8 +107,8 @@ def update_order_status_endpoint(
         order_id=order_id,
         new_status=status_data.status,
     )
-    
-    
+
+
 @router.post(
     "/{order_id}/cancel",
     response_model=OrderResponse,
@@ -121,6 +123,46 @@ def cancel_order_endpoint(
     """
 
     return cancel_order(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        order_id=order_id,
+    )
+
+    
+@router.post(
+    "/{order_id}/consume-inventory",
+    response_model=OrderResponse,
+)
+def consume_order_inventory_endpoint(
+    order_id: UUID,
+    current_user=Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Consume inventory required by a completed order using FEFO.
+    """
+
+    return consume_order_inventory(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        order_id=order_id,
+    )
+
+
+@router.get(
+    "/{order_id}",
+    response_model=OrderResponse,
+)
+def get_order_endpoint(
+    order_id: UUID,
+    current_user=Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return a single order for the current tenant.
+    """
+
+    return get_order(
         db=db,
         tenant_id=current_user["tenant_id"],
         order_id=order_id,

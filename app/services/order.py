@@ -3,6 +3,10 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from decimal import Decimal
+from datetime import datetime, timezone
+
+from app.services.inventory import consume_inventory
 
 from app.database.models.branch import Branch
 from app.database.models.customer import Customer
@@ -11,13 +15,15 @@ from app.database.models.order import Order, OrderItem, OrderStatus
 from app.database.models.product_variant import ProductVariant
 from app.repositories.order import OrderRepository
 from app.schemas.order import OrderCreate
+from app.database.models.recipe_item import RecipeItem
+from app.repositories.recipe import RecipeRepository
 
 
 def create_order(
     db: Session,
     tenant_id: UUID,
     data: OrderCreate,
-) -> Order:
+) -> dict:
     """
     Create a new order for the current tenant.
 
@@ -232,7 +238,34 @@ def create_order(
         db.commit()
         db.refresh(order)
 
-        return order
+        # -----------------------------------------------------
+        # 9. Return order with its items
+        # -----------------------------------------------------
+        items = order_repository.get_items(
+            order_id=order.id,
+        )
+
+        return {
+            "id": order.id,
+            "tenant_id": order.tenant_id,
+            "branch_id": order.branch_id,
+            "customer_id": order.customer_id,
+            "order_number": order.order_number,
+            "order_type": order.order_type,
+            "status": order.status,
+            "note": order.note,
+            "delivery_recipient_name": order.delivery_recipient_name,
+            "delivery_phone": order.delivery_phone,
+            "delivery_address_line": order.delivery_address_line,
+            "delivery_city": order.delivery_city,
+            "delivery_postal_code": order.delivery_postal_code,
+            "subtotal": order.subtotal,
+            "discount_total": order.discount_total,
+            "tax_total": order.tax_total,
+            "total": order.total,
+            "inventory_consumed_at": order.inventory_consumed_at,
+            "items": items,
+        }
 
     except HTTPException:
         db.rollback()
@@ -336,6 +369,7 @@ def get_order(
         "discount_total": order.discount_total,
         "tax_total": order.tax_total,
         "total": order.total,
+        "inventory_consumed_at": order.inventory_consumed_at,
         "items": items,
     }
 
@@ -417,6 +451,7 @@ def update_order_status(
             "discount_total": order.discount_total,
             "tax_total": order.tax_total,
             "total": order.total,
+            "inventory_consumed_at": order.inventory_consumed_at,
             "items": items,
         }
 
@@ -490,8 +525,206 @@ def cancel_order(
             "discount_total": order.discount_total,
             "tax_total": order.tax_total,
             "total": order.total,
+            "inventory_consumed_at": order.inventory_consumed_at,
             "items": items,
         }
+
+    except Exception:
+        db.rollback()
+        raise
+
+
+def calculate_order_ingredient_requirements(
+    db: Session,
+    tenant_id: UUID,
+    order_id: UUID,
+) -> dict[UUID, Decimal]:
+    """
+    Calculate total ingredient requirements for an order
+    based on the active recipe of each ordered product variant.
+    """
+
+    order_repository = OrderRepository(db)
+    recipe_repository = RecipeRepository(db)
+
+    order = order_repository.get_by_id(
+        order_id=order_id,
+        tenant_id=tenant_id,
+    )
+
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found.",
+        )
+
+    order_items = order_repository.get_items(
+        order_id=order.id,
+    )
+
+    if not order_items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order has no items.",
+        )
+
+    ingredient_requirements: dict[UUID, Decimal] = {}
+
+    for order_item in order_items:
+        recipe = recipe_repository.get_active_by_product_variant(
+            product_variant_id=order_item.product_variant_id,
+            tenant_id=tenant_id,
+        )
+
+        if recipe is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "No active recipe found for product variant: "
+                    f"{order_item.product_variant_id}"
+                ),
+            )
+
+        recipe_items = recipe_repository.get_items(
+            recipe_id=recipe.id,
+        )
+
+        if not recipe_items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Recipe has no ingredients: {recipe.id}",
+            )
+
+        for recipe_item in recipe_items:
+            required_quantity = (
+                recipe_item.quantity * order_item.quantity
+            )
+
+            ingredient_requirements[recipe_item.ingredient_id] = (
+                ingredient_requirements.get(
+                    recipe_item.ingredient_id,
+                    Decimal("0"),
+                )
+                + required_quantity
+            )
+
+    return ingredient_requirements
+
+
+def get_order_ingredient_requirements(
+    db: Session,
+    tenant_id: UUID,
+    order_id: UUID,
+) -> dict:
+    """
+    Return calculated ingredient requirements for an order.
+    """
+
+    requirements = calculate_order_ingredient_requirements(
+        db=db,
+        tenant_id=tenant_id,
+        order_id=order_id,
+    )
+
+    return {
+        "order_id": order_id,
+        "requirements": [
+            {
+                "ingredient_id": ingredient_id,
+                "quantity": quantity,
+            }
+            for ingredient_id, quantity in requirements.items()
+        ],
+    }
+
+    
+def consume_order_inventory(
+    db: Session,
+    tenant_id: UUID,
+    order_id: UUID,
+) -> dict:
+    """
+    Consume all inventory required by an order using FEFO.
+
+    Inventory is consumed only once and only for completed orders.
+    """
+
+    repository = OrderRepository(db)
+
+    order = repository.get_by_id(
+        order_id=order_id,
+        tenant_id=tenant_id,
+    )
+
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found.",
+        )
+
+    if order.status != OrderStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inventory can only be consumed for completed orders.",
+        )
+
+    if order.inventory_consumed_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Inventory has already been consumed for this order.",
+        )
+
+    requirements = calculate_order_ingredient_requirements(
+        db=db,
+        tenant_id=tenant_id,
+        order_id=order_id,
+    )
+
+    try:
+        for ingredient_id, quantity in requirements.items():
+            consume_inventory(
+                db=db,
+                tenant_id=tenant_id,
+                branch_id=order.branch_id,
+                ingredient_id=ingredient_id,
+                quantity=quantity,
+                commit=False,
+            )
+
+        order.inventory_consumed_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(order)
+
+        items = repository.get_items(
+            order_id=order.id,
+        )
+
+        return {
+            "id": order.id,
+            "tenant_id": order.tenant_id,
+            "branch_id": order.branch_id,
+            "customer_id": order.customer_id,
+            "order_number": order.order_number,
+            "order_type": order.order_type,
+            "status": order.status,
+            "note": order.note,
+            "delivery_recipient_name": order.delivery_recipient_name,
+            "delivery_phone": order.delivery_phone,
+            "delivery_address_line": order.delivery_address_line,
+            "delivery_city": order.delivery_city,
+            "delivery_postal_code": order.delivery_postal_code,
+            "subtotal": order.subtotal,
+            "discount_total": order.discount_total,
+            "tax_total": order.tax_total,
+            "total": order.total,
+            "inventory_consumed_at": order.inventory_consumed_at,
+            "items": items,
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
 
     except Exception:
         db.rollback()

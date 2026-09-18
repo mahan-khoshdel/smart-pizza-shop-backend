@@ -48,7 +48,7 @@ def consume_inventory(
         )
 
     # ---------------------------------------------------------
-    # 1. Find the inventory item for this branch and ingredient
+    # 1. Find inventory item for this branch and ingredient
     # ---------------------------------------------------------
     inventory_item = db.scalar(
         select(InventoryItem).where(
@@ -70,7 +70,7 @@ def consume_inventory(
         )
 
     # ---------------------------------------------------------
-    # 2. Find active batches belonging to this inventory item
+    # 2. Find active batches for this inventory item
     # ---------------------------------------------------------
     batches = db.scalars(
         select(InventoryBatch)

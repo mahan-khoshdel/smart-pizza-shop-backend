@@ -11,6 +11,7 @@ from app.api.v1.orders import router as orders_router
 from app.api.v1.products import router as products_router
 from app.api.v1.product_variants import router as product_variants_router
 from app.api.v1.purchases import router as purchases_router
+from app.api.v1.recipes import router as recipes_router
 
 
 app = FastAPI(
@@ -60,5 +61,10 @@ app.include_router(
 
 app.include_router(
     product_variants_router,
+    prefix="/api/v1"
+)
+
+app.include_router(
+    recipes_router,
     prefix="/api/v1"
 )
