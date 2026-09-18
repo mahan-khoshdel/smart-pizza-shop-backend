@@ -382,6 +382,9 @@ def update_order_status(
 ) -> dict:
     """
     Update an order status according to the allowed order workflow.
+
+    When an order moves to COMPLETED, the required inventory is
+    automatically consumed using FEFO in the same transaction.
     """
 
     repository = OrderRepository(db)
@@ -424,11 +427,46 @@ def update_order_status(
         )
 
     try:
+        # -----------------------------------------------------
+        # 1. Complete order and consume inventory atomically
+        # -----------------------------------------------------
+        if new_status == OrderStatus.COMPLETED:
+
+            if order.inventory_consumed_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Inventory has already been consumed for this order.",
+                )
+
+            requirements = calculate_order_ingredient_requirements(
+                db=db,
+                tenant_id=tenant_id,
+                order_id=order_id,
+            )
+
+            for ingredient_id, quantity in requirements.items():
+                consume_inventory(
+                    db=db,
+                    tenant_id=tenant_id,
+                    branch_id=order.branch_id,
+                    ingredient_id=ingredient_id,
+                    quantity=quantity,
+                    commit=False,
+                )
+
+            order.inventory_consumed_at = datetime.now(timezone.utc)
+
+        # -----------------------------------------------------
+        # 2. Update status
+        # -----------------------------------------------------
         order.status = new_status
 
         db.commit()
         db.refresh(order)
 
+        # -----------------------------------------------------
+        # 3. Load order items for the response
+        # -----------------------------------------------------
         items = repository.get_items(
             order_id=order.id,
         )
@@ -454,6 +492,10 @@ def update_order_status(
             "inventory_consumed_at": order.inventory_consumed_at,
             "items": items,
         }
+
+    except HTTPException:
+        db.rollback()
+        raise
 
     except Exception:
         db.rollback()
