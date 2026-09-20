@@ -69,3 +69,27 @@ class OrderRepository:
         )
 
         return list(self.db.scalars(statement).all())
+ 
+    def get_kitchen_orders(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID,
+    ) -> list[Order]:
+        statement = (
+            select(Order)
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.branch_id == branch_id,
+                Order.status.in_(
+                    (
+                        "PREPARING",
+                        "READY",
+                    )
+                ),
+            )
+            .order_by(
+                Order.created_at.asc(),
+            )
+        )
+
+        return list(self.db.scalars(statement).all())

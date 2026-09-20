@@ -17,6 +17,7 @@ from app.services.order import (
     cancel_order,
     consume_order_inventory,
     create_order,
+    get_kitchen_orders,
     get_order,
     get_orders,
     get_order_ingredient_requirements,
@@ -169,6 +170,25 @@ def consume_order_inventory_endpoint(
         db=db,
         tenant_id=current_user["tenant_id"],
         order_id=order_id,
+    )
+
+    
+@router.get(
+    "/kitchen",
+    response_model=list[OrderResponse],
+)
+def get_kitchen_orders_endpoint(
+    branch_id: UUID,
+    current_user_data: dict = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return PREPARING and READY orders for a specific branch.
+    """
+    return get_kitchen_orders(
+        db=db,
+        tenant_id=current_user_data["tenant_id"],
+        branch_id=branch_id,
     )
 
 

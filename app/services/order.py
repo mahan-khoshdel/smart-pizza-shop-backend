@@ -839,3 +839,56 @@ def get_order_status_history(
     return history_repository.get_by_order_id(
         order_id=order.id,
     )
+
+    
+def get_kitchen_orders(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+) -> list[dict]:
+    """
+    Return orders currently relevant to the kitchen.
+
+    Only PREPARING and READY orders belonging to the
+    requested branch and current tenant are returned.
+    """
+
+    order_repository = OrderRepository(db)
+
+    orders = order_repository.get_kitchen_orders(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    result = []
+
+    for order in orders:
+        items = order_repository.get_items(
+            order_id=order.id,
+        )
+
+        result.append(
+            {
+                "id": order.id,
+                "tenant_id": order.tenant_id,
+                "branch_id": order.branch_id,
+                "customer_id": order.customer_id,
+                "order_number": order.order_number,
+                "order_type": order.order_type,
+                "status": order.status,
+                "note": order.note,
+                "delivery_recipient_name": order.delivery_recipient_name,
+                "delivery_phone": order.delivery_phone,
+                "delivery_address_line": order.delivery_address_line,
+                "delivery_city": order.delivery_city,
+                "delivery_postal_code": order.delivery_postal_code,
+                "subtotal": order.subtotal,
+                "discount_total": order.discount_total,
+                "tax_total": order.tax_total,
+                "total": order.total,
+                "inventory_consumed_at": order.inventory_consumed_at,
+                "items": items,
+            }
+        )
+
+    return result
