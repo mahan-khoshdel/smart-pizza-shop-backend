@@ -12,6 +12,8 @@ from app.database.models.branch import Branch
 from app.database.models.customer import Customer
 from app.database.models.customer_address import CustomerAddress
 from app.database.models.order import Order, OrderItem, OrderStatus
+from app.repositories.order_status_history import OrderStatusHistoryRepository
+from app.repositories.order_status_history import OrderStatusHistoryRepository
 from app.database.models.product_variant import ProductVariant
 from app.repositories.order import OrderRepository
 from app.schemas.order import OrderCreate
@@ -234,7 +236,16 @@ def create_order(
         for order_item in order_items:
             order_item.order_id = order.id
             db.add(order_item)
+        db.flush()
 
+        history_repository = OrderStatusHistoryRepository(db)
+
+        history_repository.create(
+            order_id=order.id,
+            from_status=None,
+            to_status=OrderStatus.REGISTERED,
+        )
+        
         db.commit()
         db.refresh(order)
 
@@ -459,7 +470,17 @@ def update_order_status(
         # -----------------------------------------------------
         # 2. Update status
         # -----------------------------------------------------
+        old_status = order.status
+
         order.status = new_status
+
+        history_repository = OrderStatusHistoryRepository(db)
+
+        history_repository.create(
+            order_id=order.id,
+            from_status=getattr(old_status, "value", old_status),
+            to_status=getattr(new_status, "value", new_status),
+        )
 
         db.commit()
         db.refresh(order)
@@ -540,7 +561,17 @@ def cancel_order(
         )
 
     try:
+        old_status = order.status
+
         order.status = OrderStatus.CANCELLED
+
+        history_repository = OrderStatusHistoryRepository(db)
+
+        history_repository.create(
+            order_id=order.id,
+            from_status=getattr(old_status, "value", old_status),
+            to_status=OrderStatus.CANCELLED.value,
+        )
 
         db.commit()
         db.refresh(order)
@@ -771,3 +802,35 @@ def consume_order_inventory(
     except Exception:
         db.rollback()
         raise
+
+
+def get_order_status_history(
+    db: Session,
+    order_id: UUID,
+    tenant_id: UUID,
+):
+    """
+    Return the complete status history of an order.
+
+    The order is first checked against the tenant to prevent
+    cross-tenant access to status history.
+    """
+
+    order_repository = OrderRepository(db)
+
+    order = order_repository.get_by_id(
+        order_id=order_id,
+        tenant_id=tenant_id,
+    )
+
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found.",
+        )
+
+    history_repository = OrderStatusHistoryRepository(db)
+
+    return history_repository.get_by_order_id(
+        order_id=order.id,
+    )

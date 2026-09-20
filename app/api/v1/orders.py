@@ -9,6 +9,7 @@ from app.schemas.order import (
     OrderCreate,
     OrderIngredientRequirementsResponse,
     OrderResponse,
+    OrderStatusHistoryResponse,
     OrderStatusUpdate,
 )
 from app.services.order import (
@@ -18,6 +19,7 @@ from app.services.order import (
     get_order,
     get_orders,
     get_order_ingredient_requirements,
+    get_order_status_history,
     update_order_status,
 )
 
@@ -84,6 +86,25 @@ def get_order_ingredient_requirements_endpoint(
         db=db,
         tenant_id=current_user["tenant_id"],
         order_id=order_id,
+    )
+
+    
+@router.get(
+    "/{order_id}/status-history",
+    response_model=list[OrderStatusHistoryResponse],
+)
+def get_order_status_history_endpoint(
+    order_id: UUID,
+    current_user_data: dict = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the complete status history of an order.
+    """
+    return get_order_status_history(
+        db=db,
+        order_id=order_id,
+        tenant_id=current_user_data["tenant_id"],
     )
 
 

@@ -7,6 +7,7 @@ from app.database.models.inventory_batch import InventoryBatch
 from app.database.models.inventory_item import InventoryItem
 from app.database.models.inventory_movement import InventoryMovement
 from app.database.models.order import Order, OrderItem, OrderStatus, OrderType
+from app.database.models.order_status_history import OrderStatusHistory
 from app.database.models.permission import Permission
 from app.database.models.product import Product
 from app.database.models.product_variant import ProductVariant
@@ -34,6 +35,7 @@ __all__ = [
     "Order",
     "OrderItem",
     "OrderStatus",
+    "OrderStatusHistory",
     "OrderType",
     "Permission",
     "Product",

@@ -73,3 +73,16 @@ class OrderIngredientRequirementResponse(BaseModel):
 class OrderIngredientRequirementsResponse(BaseModel):
     order_id: UUID
     requirements: list[OrderIngredientRequirementResponse]
+
+    
+class OrderStatusHistoryResponse(BaseModel):
+    """
+    Represents one order status transition.
+    """
+
+    id: UUID
+    order_id: UUID
+    from_status: OrderStatus | None
+    to_status: OrderStatus
+    changed_at: datetime
+    note: str | None
