@@ -93,3 +93,41 @@ class OrderRepository:
         )
 
         return list(self.db.scalars(statement).all())
+    
+    def get_kitchen_workload(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID,
+    ) -> dict[str, int]:
+        statement = select(
+            Order.status,
+        ).where(
+            Order.tenant_id == tenant_id,
+            Order.branch_id == branch_id,
+            Order.status.in_(
+                (
+                    "PREPARING",
+                    "READY",
+                )
+            ),
+        )
+
+        statuses = list(self.db.scalars(statement).all())
+
+        preparing_count = sum(
+            1
+            for order_status in statuses
+            if getattr(order_status, "value", order_status) == "PREPARING"
+        )
+
+        ready_count = sum(
+            1
+            for order_status in statuses
+            if getattr(order_status, "value", order_status) == "READY"
+        )
+
+        return {
+            "preparing_count": preparing_count,
+            "ready_count": ready_count,
+            "active_count": len(statuses),
+        }

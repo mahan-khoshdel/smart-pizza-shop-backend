@@ -86,3 +86,14 @@ class OrderStatusHistoryResponse(BaseModel):
     to_status: OrderStatus
     changed_at: datetime
     note: str | None
+
+
+class KitchenWorkloadResponse(BaseModel):
+    """
+    Represents the current kitchen workload for a branch.
+    """
+
+    branch_id: UUID
+    preparing_count: int
+    ready_count: int
+    active_count: int

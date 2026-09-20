@@ -7,6 +7,7 @@ from app.core.auth import get_current_user_data
 from app.database.connection import get_db
 from app.database.models.order import OrderStatus
 from app.schemas.order import (
+    KitchenWorkloadResponse,
     OrderCreate,
     OrderIngredientRequirementsResponse,
     OrderResponse,
@@ -18,6 +19,7 @@ from app.services.order import (
     consume_order_inventory,
     create_order,
     get_kitchen_orders,
+    get_kitchen_workload,
     get_order,
     get_orders,
     get_order_ingredient_requirements,
@@ -186,6 +188,25 @@ def get_kitchen_orders_endpoint(
     Return PREPARING and READY orders for a specific branch.
     """
     return get_kitchen_orders(
+        db=db,
+        tenant_id=current_user_data["tenant_id"],
+        branch_id=branch_id,
+    )
+
+    
+@router.get(
+    "/kitchen/workload",
+    response_model=KitchenWorkloadResponse,
+)
+def get_kitchen_workload_endpoint(
+    branch_id: UUID,
+    current_user_data: dict = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the current kitchen workload for a specific branch.
+    """
+    return get_kitchen_workload(
         db=db,
         tenant_id=current_user_data["tenant_id"],
         branch_id=branch_id,

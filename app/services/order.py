@@ -892,3 +892,38 @@ def get_kitchen_orders(
         )
 
     return result
+
+
+def get_kitchen_workload(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+) -> dict:
+    """
+    Return the current kitchen workload for a specific branch.
+    """
+
+    order_repository = OrderRepository(db)
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    workload = order_repository.get_kitchen_workload(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    return {
+        "branch_id": branch_id,
+        **workload,
+    }
