@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user_data
 from app.database.connection import get_db
+from app.database.models.order import OrderStatus
 from app.schemas.order import (
     OrderCreate,
     OrderIngredientRequirementsResponse,
@@ -51,21 +52,22 @@ def create_order_endpoint(
     )
 
 
-@router.get(
-    "",
-    response_model=list[OrderResponse],
-)
+@router.get("", response_model=list[OrderResponse])
 def get_orders_endpoint(
-    current_user=Depends(get_current_user_data),
+    status: OrderStatus | None = None,
+    current_user_data: dict = Depends(get_current_user_data),
     db: Session = Depends(get_db),
 ):
     """
-    Return all orders for the current tenant.
-    """
+    Return orders for the current tenant.
 
+    An optional status filter can be used to return only orders
+    with a specific status.
+    """
     return get_orders(
         db=db,
-        tenant_id=current_user["tenant_id"],
+        tenant_id=current_user_data["tenant_id"],
+        status=status,
     )
 
 

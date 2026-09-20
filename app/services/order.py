@@ -290,22 +290,26 @@ def create_order(
 def get_orders(
     db: Session,
     tenant_id: UUID,
+    status: OrderStatus | None = None,
 ) -> list[dict]:
     """
-    Return all orders with their order items
-    for the current tenant.
+    Return orders for the current tenant.
+
+    When status is provided, only orders with that status
+    are returned.
     """
 
-    repository = OrderRepository(db)
+    order_repository = OrderRepository(db)
 
-    orders = repository.get_all(
+    orders = order_repository.get_all(
         tenant_id=tenant_id,
+        status=status.value if status is not None else None,
     )
 
     result = []
 
     for order in orders:
-        items = repository.get_items(
+        items = order_repository.get_items(
             order_id=order.id,
         )
 
@@ -328,6 +332,7 @@ def get_orders(
                 "discount_total": order.discount_total,
                 "tax_total": order.tax_total,
                 "total": order.total,
+                "inventory_consumed_at": order.inventory_consumed_at,
                 "items": items,
             }
         )

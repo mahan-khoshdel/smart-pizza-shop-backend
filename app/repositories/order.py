@@ -7,6 +7,10 @@ from app.database.models.order import Order, OrderItem
 
 
 class OrderRepository:
+    """
+    Handles database access for orders.
+    """
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -49,11 +53,19 @@ class OrderRepository:
     def get_all(
         self,
         tenant_id: UUID,
+        status: str | None = None,
     ) -> list[Order]:
-        statement = (
-            select(Order)
-            .where(Order.tenant_id == tenant_id)
-            .order_by(Order.created_at.desc())
+        statement = select(Order).where(
+            Order.tenant_id == tenant_id,
+        )
+
+        if status is not None:
+            statement = statement.where(
+                Order.status == status,
+            )
+
+        statement = statement.order_by(
+            Order.created_at.desc(),
         )
 
         return list(self.db.scalars(statement).all())
