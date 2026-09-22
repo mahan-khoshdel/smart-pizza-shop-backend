@@ -1,7 +1,14 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -17,6 +24,10 @@ class Branch(Base):
             "tenant_id",
             "code",
             name="uq_branches_tenant_code",
+        ),
+        CheckConstraint(
+            "kitchen_capacity > 0",
+            name="ck_branches_kitchen_capacity_positive",
         ),
     )
 
@@ -56,6 +67,12 @@ class Branch(Base):
 
     is_active: Mapped[bool] = mapped_column(
         default=True,
+        nullable=False,
+    )
+    
+    kitchen_capacity: Mapped[int] = mapped_column(
+        default=5,
+        server_default="5",
         nullable=False,
     )
 

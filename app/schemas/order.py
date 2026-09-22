@@ -97,3 +97,6 @@ class KitchenWorkloadResponse(BaseModel):
     preparing_count: int
     ready_count: int
     active_count: int
+    kitchen_capacity: int
+    capacity_available: int
+    is_at_capacity: bool

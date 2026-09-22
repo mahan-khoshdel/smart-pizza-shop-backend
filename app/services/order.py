@@ -900,7 +900,8 @@ def get_kitchen_workload(
     branch_id: UUID,
 ) -> dict:
     """
-    Return the current kitchen workload for a specific branch.
+    Return the current kitchen workload and capacity
+    for a specific branch.
     """
 
     order_repository = OrderRepository(db)
@@ -923,7 +924,22 @@ def get_kitchen_workload(
         branch_id=branch_id,
     )
 
+    preparing_count = workload["preparing_count"]
+    kitchen_capacity = branch.kitchen_capacity
+
+    capacity_available = max(
+        kitchen_capacity - preparing_count,
+        0,
+    )
+
+    is_at_capacity = preparing_count >= kitchen_capacity
+
     return {
         "branch_id": branch_id,
-        **workload,
+        "preparing_count": preparing_count,
+        "ready_count": workload["ready_count"],
+        "active_count": workload["active_count"],
+        "kitchen_capacity": kitchen_capacity,
+        "capacity_available": capacity_available,
+        "is_at_capacity": is_at_capacity,
     }
