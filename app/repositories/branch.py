@@ -24,3 +24,19 @@ class BranchRepository:
         )
 
         return self.db.scalar(statement)
+    
+    def update_kitchen_capacity(
+        self,
+        branch: Branch,
+        kitchen_capacity: int,
+    ) -> Branch:
+        """
+        Update the kitchen capacity of a branch.
+        """
+
+        branch.kitchen_capacity = kitchen_capacity
+
+        self.db.commit()
+        self.db.refresh(branch)
+
+        return branch

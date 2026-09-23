@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.branches import router as branches_router
 from app.api.v1.categories import router as categories_router
 from app.api.v1.customer_addresses import (
     router as customer_addresses_router,
@@ -46,25 +47,30 @@ app.include_router(
 
 app.include_router(
     orders_router,
-    prefix="/api/v1"
+    prefix="/api/v1",
 )
 
 app.include_router(
     categories_router,
-    prefix="/api/v1"
+    prefix="/api/v1",
 )
 
 app.include_router(
     products_router,
-    prefix="/api/v1"
+    prefix="/api/v1",
 )
 
 app.include_router(
     product_variants_router,
-    prefix="/api/v1"
+    prefix="/api/v1",
 )
 
 app.include_router(
     recipes_router,
-    prefix="/api/v1"
+    prefix="/api/v1",
+)
+
+app.include_router(
+    branches_router,
+    prefix="/api/v1",
 )
