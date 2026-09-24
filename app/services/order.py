@@ -985,3 +985,48 @@ def get_kitchen_workload(
         "capacity_available": capacity_available,
         "is_at_capacity": is_at_capacity,
     }
+
+    
+def get_kitchen_queue(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+) -> dict:
+    """
+    Return the current preparing-order queue for a branch.
+    """
+
+    repository = OrderRepository(db)
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    queue_rows = repository.get_kitchen_queue(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    return {
+        "branch_id": branch_id,
+        "total_preparing": len(queue_rows),
+        "queue": [
+            {
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "queue_position": queue_position,
+                "status": order.status.value,
+                "created_at": order.created_at,
+            }
+            for order, queue_position in queue_rows
+        ],
+    }

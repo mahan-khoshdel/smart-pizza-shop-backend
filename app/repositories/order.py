@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database.models.order import Order, OrderItem
@@ -131,3 +131,38 @@ class OrderRepository:
             "ready_count": ready_count,
             "active_count": len(statuses),
         }
+        
+    def get_kitchen_queue(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID,
+    ) -> list[tuple[Order, int]]:
+        queue_position = func.row_number().over(
+            order_by=(
+                Order.created_at.asc(),
+                Order.id.asc(),
+            )
+        ).label("queue_position")
+
+        statement = (
+            select(
+                Order,
+                queue_position,
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.branch_id == branch_id,
+                Order.status == "PREPARING",
+            )
+            .order_by(
+                Order.created_at.asc(),
+                Order.id.asc(),
+            )
+        )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            (order, int(queue_position))
+            for order, queue_position in rows
+        ]
