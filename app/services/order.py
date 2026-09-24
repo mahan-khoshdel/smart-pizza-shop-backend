@@ -13,7 +13,6 @@ from app.database.models.customer import Customer
 from app.database.models.customer_address import CustomerAddress
 from app.database.models.order import Order, OrderItem, OrderStatus
 from app.repositories.order_status_history import OrderStatusHistoryRepository
-from app.repositories.order_status_history import OrderStatusHistoryRepository
 from app.database.models.product_variant import ProductVariant
 from app.repositories.order import OrderRepository
 from app.schemas.order import OrderCreate
@@ -399,6 +398,9 @@ def update_order_status(
     """
     Update an order status according to the allowed order workflow.
 
+    When an order moves to PREPARING, the branch kitchen capacity
+    is checked before allowing the transition.
+
     When an order moves to COMPLETED, the required inventory is
     automatically consumed using FEFO in the same transaction.
     """
@@ -444,14 +446,54 @@ def update_order_status(
 
     try:
         # -----------------------------------------------------
-        # 1. Complete order and consume inventory atomically
+        # 1. Check kitchen capacity before PREPARING
+        # -----------------------------------------------------
+        if new_status == OrderStatus.PREPARING:
+
+            branch = db.scalar(
+                select(Branch)
+                .where(
+                    Branch.id == order.branch_id,
+                    Branch.tenant_id == tenant_id,
+                )
+                .with_for_update()
+            )
+
+            if branch is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Branch not found.",
+                )
+
+            workload = repository.get_kitchen_workload(
+                tenant_id=tenant_id,
+                branch_id=order.branch_id,
+            )
+
+            preparing_count = workload["preparing_count"]
+
+            if preparing_count >= branch.kitchen_capacity:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        "Kitchen capacity reached. "
+                        f"Preparing orders: {preparing_count}. "
+                        f"Kitchen capacity: {branch.kitchen_capacity}."
+                    ),
+                )
+
+        # -----------------------------------------------------
+        # 2. Complete order and consume inventory atomically
         # -----------------------------------------------------
         if new_status == OrderStatus.COMPLETED:
 
             if order.inventory_consumed_at is not None:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Inventory has already been consumed for this order.",
+                    detail=(
+                        "Inventory has already been consumed "
+                        "for this order."
+                    ),
                 )
 
             requirements = calculate_order_ingredient_requirements(
@@ -473,7 +515,7 @@ def update_order_status(
             order.inventory_consumed_at = datetime.now(timezone.utc)
 
         # -----------------------------------------------------
-        # 2. Update status
+        # 3. Update status
         # -----------------------------------------------------
         old_status = order.status
 
@@ -491,7 +533,7 @@ def update_order_status(
         db.refresh(order)
 
         # -----------------------------------------------------
-        # 3. Load order items for the response
+        # 4. Load order items for the response
         # -----------------------------------------------------
         items = repository.get_items(
             order_id=order.id,
