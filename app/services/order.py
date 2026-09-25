@@ -521,6 +521,12 @@ def update_order_status(
 
         order.status = new_status
 
+        if new_status == OrderStatus.PREPARING:
+            order.preparing_at = datetime.now(timezone.utc)
+
+        elif new_status == OrderStatus.READY:
+            order.ready_at = datetime.now(timezone.utc)
+
         history_repository = OrderStatusHistoryRepository(db)
 
         history_repository.create(
