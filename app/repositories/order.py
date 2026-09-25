@@ -166,3 +166,34 @@ class OrderRepository:
             (order, int(queue_position))
             for order, queue_position in rows
         ]
+        
+    def get_kitchen_preparation_durations(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID,
+    ) -> list[float]:
+        statement = (
+            select(
+                Order.preparing_at,
+                Order.ready_at,
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.branch_id == branch_id,
+                Order.preparing_at.is_not(None),
+                Order.ready_at.is_not(None),
+            )
+        )
+
+        rows = self.db.execute(statement).all()
+
+        durations = []
+
+        for preparing_at, ready_at in rows:
+            duration = (
+                ready_at - preparing_at
+            ).total_seconds()
+
+            durations.append(duration)
+
+        return durations

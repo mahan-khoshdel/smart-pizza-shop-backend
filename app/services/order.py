@@ -1036,3 +1036,73 @@ def get_kitchen_queue(
             for order, queue_position in queue_rows
         ],
     }
+
+    
+def get_kitchen_performance(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+) -> dict:
+    """
+    Return kitchen preparation performance for a branch.
+    """
+
+    repository = OrderRepository(db)
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    durations = repository.get_kitchen_preparation_durations(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    prepared_order_count = len(durations)
+
+    if prepared_order_count == 0:
+        return {
+            "branch_id": branch_id,
+            "prepared_order_count": 0,
+            "average_preparation_seconds": None,
+            "average_preparation_minutes": None,
+            "fastest_preparation_seconds": None,
+            "slowest_preparation_seconds": None,
+        }
+
+    average_seconds = (
+        sum(durations) / prepared_order_count
+    )
+
+    fastest_seconds = min(durations)
+    slowest_seconds = max(durations)
+
+    return {
+        "branch_id": branch_id,
+        "prepared_order_count": prepared_order_count,
+        "average_preparation_seconds": round(
+            average_seconds,
+            2,
+        ),
+        "average_preparation_minutes": round(
+            average_seconds / 60,
+            2,
+        ),
+        "fastest_preparation_seconds": round(
+            fastest_seconds,
+            2,
+        ),
+        "slowest_preparation_seconds": round(
+            slowest_seconds,
+            2,
+        ),
+    }

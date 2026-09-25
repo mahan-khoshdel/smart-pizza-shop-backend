@@ -100,3 +100,18 @@ class KitchenWorkloadResponse(BaseModel):
     kitchen_capacity: int
     capacity_available: int
     is_at_capacity: bool
+
+    
+class KitchenPerformanceResponse(BaseModel):
+    """
+    Represents kitchen preparation performance for a branch.
+    """
+
+    branch_id: UUID
+    prepared_order_count: int
+
+    average_preparation_seconds: float | None
+    average_preparation_minutes: float | None
+
+    fastest_preparation_seconds: float | None
+    slowest_preparation_seconds: float | None
