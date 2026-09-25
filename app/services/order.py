@@ -1109,9 +1109,9 @@ def get_kitchen_queue(
     """
     Return the current preparing-order queue for a branch.
 
-    Each queue item includes preparation timing and overdue
-    information based on the historical preparation average
-    for the same branch.
+    Each queue item includes preparation timing, remaining time,
+    and overdue information based on the historical preparation
+    average for the same branch.
     """
 
     repository = OrderRepository(db)
@@ -1165,6 +1165,9 @@ def get_kitchen_queue(
         preparation_elapsed_seconds = None
         preparation_elapsed_minutes = None
 
+        remaining_preparation_seconds = None
+        remaining_preparation_minutes = None
+
         is_overdue = False
         overdue_seconds = None
         overdue_minutes = None
@@ -1192,26 +1195,43 @@ def get_kitchen_queue(
             )
 
         # -----------------------------------------------------
-        # Overdue detection
+        # Calculate remaining time / overdue time
         # -----------------------------------------------------
         if (
             preparation_elapsed_seconds is not None
             and expected_preparation_seconds is not None
-            and preparation_elapsed_seconds
-            > expected_preparation_seconds
         ):
-            is_overdue = True
-
-            overdue_seconds = round(
-                preparation_elapsed_seconds
-                - expected_preparation_seconds,
-                2,
+            remaining_seconds = (
+                expected_preparation_seconds
+                - preparation_elapsed_seconds
             )
 
-            overdue_minutes = round(
-                overdue_seconds / 60,
-                2,
-            )
+            if remaining_seconds > 0:
+                remaining_preparation_seconds = round(
+                    remaining_seconds,
+                    2,
+                )
+
+                remaining_preparation_minutes = round(
+                    remaining_seconds / 60,
+                    2,
+                )
+
+            else:
+                remaining_preparation_seconds = 0
+                remaining_preparation_minutes = 0
+
+                is_overdue = True
+
+                overdue_seconds = round(
+                    abs(remaining_seconds),
+                    2,
+                )
+
+                overdue_minutes = round(
+                    overdue_seconds / 60,
+                    2,
+                )
 
         queue.append(
             {
@@ -1231,6 +1251,12 @@ def get_kitchen_queue(
                 ),
                 "expected_preparation_minutes": (
                     expected_preparation_minutes
+                ),
+                "remaining_preparation_seconds": (
+                    remaining_preparation_seconds
+                ),
+                "remaining_preparation_minutes": (
+                    remaining_preparation_minutes
                 ),
                 "is_overdue": is_overdue,
                 "overdue_seconds": overdue_seconds,
