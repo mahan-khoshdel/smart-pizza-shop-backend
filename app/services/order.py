@@ -914,6 +914,32 @@ def get_kitchen_orders(
         items = order_repository.get_items(
             order_id=order.id,
         )
+        preparation_elapsed_seconds = None
+        preparation_elapsed_minutes = None
+
+        if order.preparing_at is not None:
+            end_time = (
+                order.ready_at
+                if order.ready_at is not None
+                else datetime.now(timezone.utc)
+            )
+
+            preparation_elapsed_seconds = max(
+                (
+                    end_time - order.preparing_at
+                ).total_seconds(),
+                0,
+            )
+
+            preparation_elapsed_seconds = round(
+                preparation_elapsed_seconds,
+                2,
+            )
+
+            preparation_elapsed_minutes = round(
+                preparation_elapsed_seconds / 60,
+                2,
+            )
 
         result.append(
             {
@@ -935,6 +961,8 @@ def get_kitchen_orders(
                 "tax_total": order.tax_total,
                 "total": order.total,
                 "inventory_consumed_at": order.inventory_consumed_at,
+                "preparation_elapsed_seconds": preparation_elapsed_seconds,
+                "preparation_elapsed_minutes": preparation_elapsed_minutes,
                 "items": items,
             }
         )

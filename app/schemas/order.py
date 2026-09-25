@@ -57,6 +57,9 @@ class OrderResponse(BaseModel):
     total: int
     
     inventory_consumed_at: datetime | None
+    
+    preparation_elapsed_seconds: float | None = None
+    preparation_elapsed_minutes: float | None = None
 
     items: list[OrderItemResponse]
     
