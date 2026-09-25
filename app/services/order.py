@@ -899,6 +899,10 @@ def get_kitchen_orders(
 
     Only PREPARING and READY orders belonging to the
     requested branch and current tenant are returned.
+
+    For PREPARING orders, the service compares the current
+    preparation time with the historical average preparation
+    time of completed kitchen orders for the same branch.
     """
 
     order_repository = OrderRepository(db)
@@ -908,15 +912,47 @@ def get_kitchen_orders(
         branch_id=branch_id,
     )
 
+    # ---------------------------------------------------------
+    # Calculate historical preparation baseline
+    # ---------------------------------------------------------
+    historical_durations = (
+        order_repository.get_kitchen_preparation_durations(
+            tenant_id=tenant_id,
+            branch_id=branch_id,
+        )
+    )
+
+    expected_preparation_seconds = None
+    expected_preparation_minutes = None
+
+    if historical_durations:
+        expected_preparation_seconds = round(
+            sum(historical_durations) / len(historical_durations),
+            2,
+        )
+
+        expected_preparation_minutes = round(
+            expected_preparation_seconds / 60,
+            2,
+        )
+
     result = []
 
     for order in orders:
         items = order_repository.get_items(
             order_id=order.id,
         )
+
         preparation_elapsed_seconds = None
         preparation_elapsed_minutes = None
 
+        is_overdue = False
+        overdue_seconds = None
+        overdue_minutes = None
+
+        # -----------------------------------------------------
+        # Calculate current preparation duration
+        # -----------------------------------------------------
         if order.preparing_at is not None:
             end_time = (
                 order.ready_at
@@ -941,6 +977,29 @@ def get_kitchen_orders(
                 2,
             )
 
+        # -----------------------------------------------------
+        # Determine whether a PREPARING order is overdue
+        # -----------------------------------------------------
+        if (
+            order.status == OrderStatus.PREPARING
+            and preparation_elapsed_seconds is not None
+            and expected_preparation_seconds is not None
+            and preparation_elapsed_seconds
+            > expected_preparation_seconds
+        ):
+            is_overdue = True
+
+            overdue_seconds = round(
+                preparation_elapsed_seconds
+                - expected_preparation_seconds,
+                2,
+            )
+
+            overdue_minutes = round(
+                overdue_seconds / 60,
+                2,
+            )
+
         result.append(
             {
                 "id": order.id,
@@ -951,18 +1010,39 @@ def get_kitchen_orders(
                 "order_type": order.order_type,
                 "status": order.status,
                 "note": order.note,
-                "delivery_recipient_name": order.delivery_recipient_name,
+                "delivery_recipient_name": (
+                    order.delivery_recipient_name
+                ),
                 "delivery_phone": order.delivery_phone,
-                "delivery_address_line": order.delivery_address_line,
+                "delivery_address_line": (
+                    order.delivery_address_line
+                ),
                 "delivery_city": order.delivery_city,
-                "delivery_postal_code": order.delivery_postal_code,
+                "delivery_postal_code": (
+                    order.delivery_postal_code
+                ),
                 "subtotal": order.subtotal,
                 "discount_total": order.discount_total,
                 "tax_total": order.tax_total,
                 "total": order.total,
-                "inventory_consumed_at": order.inventory_consumed_at,
-                "preparation_elapsed_seconds": preparation_elapsed_seconds,
-                "preparation_elapsed_minutes": preparation_elapsed_minutes,
+                "inventory_consumed_at": (
+                    order.inventory_consumed_at
+                ),
+                "preparation_elapsed_seconds": (
+                    preparation_elapsed_seconds
+                ),
+                "preparation_elapsed_minutes": (
+                    preparation_elapsed_minutes
+                ),
+                "expected_preparation_seconds": (
+                    expected_preparation_seconds
+                ),
+                "expected_preparation_minutes": (
+                    expected_preparation_minutes
+                ),
+                "is_overdue": is_overdue,
+                "overdue_seconds": overdue_seconds,
+                "overdue_minutes": overdue_minutes,
                 "items": items,
             }
         )

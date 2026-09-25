@@ -60,6 +60,13 @@ class OrderResponse(BaseModel):
     
     preparation_elapsed_seconds: float | None = None
     preparation_elapsed_minutes: float | None = None
+    
+    expected_preparation_seconds: float | None = None
+    expected_preparation_minutes: float | None = None
+
+    is_overdue: bool = False
+    overdue_seconds: float | None = None
+    overdue_minutes: float | None = None
 
     items: list[OrderItemResponse]
     
