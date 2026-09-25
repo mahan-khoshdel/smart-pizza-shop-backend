@@ -1108,6 +1108,10 @@ def get_kitchen_queue(
 ) -> dict:
     """
     Return the current preparing-order queue for a branch.
+
+    Each queue item includes preparation timing and overdue
+    information based on the historical preparation average
+    for the same branch.
     """
 
     repository = OrderRepository(db)
@@ -1130,19 +1134,114 @@ def get_kitchen_queue(
         branch_id=branch_id,
     )
 
-    return {
-        "branch_id": branch_id,
-        "total_preparing": len(queue_rows),
-        "queue": [
+    # ---------------------------------------------------------
+    # Historical preparation baseline
+    # ---------------------------------------------------------
+    historical_durations = (
+        repository.get_kitchen_preparation_durations(
+            tenant_id=tenant_id,
+            branch_id=branch_id,
+        )
+    )
+
+    expected_preparation_seconds = None
+    expected_preparation_minutes = None
+
+    if historical_durations:
+        expected_preparation_seconds = round(
+            sum(historical_durations)
+            / len(historical_durations),
+            2,
+        )
+
+        expected_preparation_minutes = round(
+            expected_preparation_seconds / 60,
+            2,
+        )
+
+    queue = []
+
+    for order, queue_position in queue_rows:
+        preparation_elapsed_seconds = None
+        preparation_elapsed_minutes = None
+
+        is_overdue = False
+        overdue_seconds = None
+        overdue_minutes = None
+
+        # -----------------------------------------------------
+        # Current preparation duration
+        # -----------------------------------------------------
+        if order.preparing_at is not None:
+            preparation_elapsed_seconds = max(
+                (
+                    datetime.now(timezone.utc)
+                    - order.preparing_at
+                ).total_seconds(),
+                0,
+            )
+
+            preparation_elapsed_seconds = round(
+                preparation_elapsed_seconds,
+                2,
+            )
+
+            preparation_elapsed_minutes = round(
+                preparation_elapsed_seconds / 60,
+                2,
+            )
+
+        # -----------------------------------------------------
+        # Overdue detection
+        # -----------------------------------------------------
+        if (
+            preparation_elapsed_seconds is not None
+            and expected_preparation_seconds is not None
+            and preparation_elapsed_seconds
+            > expected_preparation_seconds
+        ):
+            is_overdue = True
+
+            overdue_seconds = round(
+                preparation_elapsed_seconds
+                - expected_preparation_seconds,
+                2,
+            )
+
+            overdue_minutes = round(
+                overdue_seconds / 60,
+                2,
+            )
+
+        queue.append(
             {
                 "order_id": order.id,
                 "order_number": order.order_number,
                 "queue_position": queue_position,
                 "status": order.status.value,
                 "created_at": order.created_at,
+                "preparation_elapsed_seconds": (
+                    preparation_elapsed_seconds
+                ),
+                "preparation_elapsed_minutes": (
+                    preparation_elapsed_minutes
+                ),
+                "expected_preparation_seconds": (
+                    expected_preparation_seconds
+                ),
+                "expected_preparation_minutes": (
+                    expected_preparation_minutes
+                ),
+                "is_overdue": is_overdue,
+                "overdue_seconds": overdue_seconds,
+                "overdue_minutes": overdue_minutes,
             }
-            for order, queue_position in queue_rows
-        ],
+        )
+
+    return {
+        "branch_id": branch_id,
+        "total_preparing": len(queue),
+        "queue": queue,
     }
 
     
