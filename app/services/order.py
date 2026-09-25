@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.services.inventory import consume_inventory
 
@@ -1110,8 +1110,8 @@ def get_kitchen_queue(
     Return the current preparing-order queue for a branch.
 
     Each queue item includes preparation timing, remaining time,
-    and overdue information based on the historical preparation
-    average for the same branch.
+    overdue information, and an estimated ready timestamp based
+    on the historical preparation average for the same branch.
     """
 
     repository = OrderRepository(db)
@@ -1168,6 +1168,8 @@ def get_kitchen_queue(
         remaining_preparation_seconds = None
         remaining_preparation_minutes = None
 
+        estimated_ready_at = None
+
         is_overdue = False
         overdue_seconds = None
         overdue_minutes = None
@@ -1176,10 +1178,11 @@ def get_kitchen_queue(
         # Current preparation duration
         # -----------------------------------------------------
         if order.preparing_at is not None:
+            current_time = datetime.now(timezone.utc)
+
             preparation_elapsed_seconds = max(
                 (
-                    datetime.now(timezone.utc)
-                    - order.preparing_at
+                    current_time - order.preparing_at
                 ).total_seconds(),
                 0,
             )
@@ -1194,45 +1197,53 @@ def get_kitchen_queue(
                 2,
             )
 
-        # -----------------------------------------------------
-        # Calculate remaining time / overdue time
-        # -----------------------------------------------------
-        if (
-            preparation_elapsed_seconds is not None
-            and expected_preparation_seconds is not None
-        ):
-            remaining_seconds = (
-                expected_preparation_seconds
-                - preparation_elapsed_seconds
-            )
-
-            if remaining_seconds > 0:
-                remaining_preparation_seconds = round(
-                    remaining_seconds,
-                    2,
+            # -------------------------------------------------
+            # Remaining time / overdue time
+            # -------------------------------------------------
+            if expected_preparation_seconds is not None:
+                remaining_seconds = (
+                    expected_preparation_seconds
+                    - preparation_elapsed_seconds
                 )
 
-                remaining_preparation_minutes = round(
-                    remaining_seconds / 60,
-                    2,
+                if remaining_seconds > 0:
+                    remaining_preparation_seconds = round(
+                        remaining_seconds,
+                        2,
+                    )
+
+                    remaining_preparation_minutes = round(
+                        remaining_seconds / 60,
+                        2,
+                    )
+
+                else:
+                    remaining_preparation_seconds = 0
+                    remaining_preparation_minutes = 0
+
+                    is_overdue = True
+
+                    overdue_seconds = round(
+                        abs(remaining_seconds),
+                        2,
+                    )
+
+                    overdue_minutes = round(
+                        overdue_seconds / 60,
+                        2,
+                    )
+
+                # ---------------------------------------------
+                # Estimated ready timestamp
+                # ---------------------------------------------
+                estimated_ready_at = (
+                    current_time
+                    + timedelta(
+                        seconds=remaining_preparation_seconds,
+                    )
                 )
 
-            else:
-                remaining_preparation_seconds = 0
-                remaining_preparation_minutes = 0
-
-                is_overdue = True
-
-                overdue_seconds = round(
-                    abs(remaining_seconds),
-                    2,
-                )
-
-                overdue_minutes = round(
-                    overdue_seconds / 60,
-                    2,
-                )
-
+    # ---------------------------------------------------------
         queue.append(
             {
                 "order_id": order.id,
@@ -1258,6 +1269,7 @@ def get_kitchen_queue(
                 "remaining_preparation_minutes": (
                     remaining_preparation_minutes
                 ),
+                "estimated_ready_at": estimated_ready_at,
                 "is_overdue": is_overdue,
                 "overdue_seconds": overdue_seconds,
                 "overdue_minutes": overdue_minutes,
@@ -1269,7 +1281,6 @@ def get_kitchen_queue(
         "total_preparing": len(queue),
         "queue": queue,
     }
-
     
 def get_kitchen_performance(
     db: Session,

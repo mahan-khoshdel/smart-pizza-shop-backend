@@ -22,6 +22,8 @@ class KitchenQueueOrderResponse(BaseModel):
     remaining_preparation_seconds: float | None = None
     remaining_preparation_minutes: float | None = None
 
+    estimated_ready_at: datetime | None = None
+
     is_overdue: bool = False
     overdue_seconds: float | None = None
     overdue_minutes: float | None = None
