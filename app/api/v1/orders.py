@@ -7,6 +7,7 @@ from app.core.auth import get_current_user_data
 from app.database.connection import get_db
 from app.database.models.order import OrderStatus
 from app.schemas.kitchen import KitchenQueueResponse
+from app.schemas.kitchen import KitchenWaitingQueueResponse
 from app.schemas.order import (
     KitchenPerformanceResponse,
     KitchenWorkloadResponse,
@@ -23,6 +24,7 @@ from app.services.order import (
     get_kitchen_orders,
     get_kitchen_performance,
     get_kitchen_queue,
+    get_kitchen_waiting_queue,
     get_kitchen_workload,
     get_order,
     get_orders,
@@ -230,6 +232,25 @@ def get_kitchen_queue_endpoint(
     Return the current preparing-order queue for a branch.
     """
     return get_kitchen_queue(
+        db=db,
+        tenant_id=current_user_data["tenant_id"],
+        branch_id=branch_id,
+    )
+
+    
+@router.get(
+    "/kitchen/waiting",
+    response_model=KitchenWaitingQueueResponse,
+)
+def get_kitchen_waiting_queue_endpoint(
+    branch_id: UUID,
+    current_user_data: dict = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return orders waiting for available kitchen capacity.
+    """
+    return get_kitchen_waiting_queue(
         db=db,
         tenant_id=current_user_data["tenant_id"],
         branch_id=branch_id,

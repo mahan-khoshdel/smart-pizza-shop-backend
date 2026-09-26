@@ -1350,3 +1350,75 @@ def get_kitchen_performance(
             2,
         ),
     }
+    
+    
+def get_kitchen_waiting_queue(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+) -> dict:
+    """
+    Return orders waiting for available kitchen capacity.
+
+    REGISTERED orders are ordered by creation time.
+    """
+
+    repository = OrderRepository(db)
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    workload = repository.get_kitchen_workload(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    preparing_count = workload["preparing_count"]
+
+    capacity_available = max(
+        branch.kitchen_capacity - preparing_count,
+        0,
+    )
+
+    waiting_orders = repository.get_kitchen_waiting_orders(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    queue = []
+
+    for index, order in enumerate(
+        waiting_orders,
+        start=1,
+    ):
+        queue.append(
+            {
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "queue_position": index,
+                "status": order.status.value,
+                "created_at": order.created_at,
+                "can_start_now": (
+                    index <= capacity_available
+                ),
+            }
+        )
+
+    return {
+        "branch_id": branch_id,
+        "kitchen_capacity": branch.kitchen_capacity,
+        "preparing_count": preparing_count,
+        "capacity_available": capacity_available,
+        "total_waiting": len(queue),
+        "queue": queue,
+    }

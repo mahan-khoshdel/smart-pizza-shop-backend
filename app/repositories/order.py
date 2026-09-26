@@ -197,3 +197,23 @@ class OrderRepository:
             durations.append(duration)
 
         return durations
+    
+    def get_kitchen_waiting_orders(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID,
+    ) -> list[Order]:
+        statement = (
+            select(Order)
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.branch_id == branch_id,
+                Order.status == "REGISTERED",
+            )
+            .order_by(
+                Order.created_at.asc(),
+                Order.id.asc(),
+            )
+        )
+
+        return list(self.db.scalars(statement).all())

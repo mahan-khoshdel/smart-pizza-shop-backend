@@ -35,3 +35,25 @@ class KitchenQueueResponse(BaseModel):
     branch_id: UUID
     total_preparing: int
     queue: list[KitchenQueueOrderResponse]
+
+    
+class KitchenWaitingOrderResponse(BaseModel):
+    """Represent an order waiting for kitchen capacity."""
+
+    order_id: UUID
+    order_number: str
+    queue_position: int
+    status: str
+    created_at: datetime
+    can_start_now: bool
+
+
+class KitchenWaitingQueueResponse(BaseModel):
+    """Represent orders waiting for available kitchen capacity."""
+
+    branch_id: UUID
+    kitchen_capacity: int
+    preparing_count: int
+    capacity_available: int
+    total_waiting: int
+    queue: list[KitchenWaitingOrderResponse]
