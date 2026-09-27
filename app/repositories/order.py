@@ -217,3 +217,35 @@ class OrderRepository:
         )
 
         return list(self.db.scalars(statement).all())
+    
+    def get_waiting_orders_for_promotion(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID,
+        limit: int,
+    ) -> list[Order]:
+        """
+        Return the oldest registered orders waiting for kitchen capacity.
+        """
+
+        if limit <= 0:
+            return []
+
+        statement = (
+            select(Order)
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.branch_id == branch_id,
+                Order.status == "REGISTERED",
+            )
+            .order_by(
+                Order.created_at.asc(),
+                Order.id.asc(),
+            )
+            .limit(limit)
+            .with_for_update(
+                skip_locked=True,
+            )
+        )
+
+        return list(self.db.scalars(statement).all())

@@ -20,6 +20,53 @@ from app.database.models.recipe_item import RecipeItem
 from app.repositories.recipe import RecipeRepository
 
 
+def _get_expected_preparation_seconds(
+    durations: list[float],
+) -> float | None:
+    """
+    Return a robust preparation-time baseline.
+
+    Uses the discrete 50th percentile (lower median) instead
+    of a simple average so that an unusually long preparation
+    record does not distort kitchen ETA calculations.
+    """
+
+    if not durations:
+        return None
+
+    sorted_durations = sorted(durations)
+
+    middle_index = (len(sorted_durations) - 1) // 2
+
+    return round(
+        sorted_durations[middle_index],
+        2,
+    )
+    
+        
+def _get_expected_preparation_seconds(
+    durations: list[float],
+) -> float | None:
+    """
+    Return a robust preparation-time baseline.
+
+    Uses the lower median so an unusually long test or outlier
+    does not distort the operational ETA baseline.
+    """
+
+    if not durations:
+        return None
+
+    sorted_durations = sorted(durations)
+
+    middle_index = (len(sorted_durations) - 1) // 2
+
+    return round(
+        sorted_durations[middle_index],
+        2,
+    )
+
+
 def create_order(
     db: Session,
     tenant_id: UUID,
@@ -387,6 +434,77 @@ def get_order(
         "inventory_consumed_at": order.inventory_consumed_at,
         "items": items,
     }
+    
+    
+def _promote_waiting_orders(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    repository: OrderRepository,
+) -> list[Order]:
+    """
+    Automatically move the oldest REGISTERED orders into PREPARING
+    when kitchen capacity becomes available.
+
+    This function does not commit the transaction.
+    """
+
+    branch = db.scalar(
+        select(Branch)
+        .where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+        .with_for_update()
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    workload = repository.get_kitchen_workload(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    capacity_available = max(
+        branch.kitchen_capacity
+        - workload["preparing_count"],
+        0,
+    )
+
+    if capacity_available <= 0:
+        return []
+
+    waiting_orders = repository.get_waiting_orders_for_promotion(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        limit=capacity_available,
+    )
+
+    if not waiting_orders:
+        return []
+
+    history_repository = OrderStatusHistoryRepository(db)
+
+    preparing_at = datetime.now(timezone.utc)
+
+    for waiting_order in waiting_orders:
+        waiting_order.status = OrderStatus.PREPARING
+        waiting_order.preparing_at = preparing_at
+
+        history_repository.create(
+            order_id=waiting_order.id,
+            from_status=OrderStatus.REGISTERED,
+            to_status=OrderStatus.PREPARING,
+            note="Automatically moved from waiting queue.",
+        )
+
+    db.flush()
+
+    return waiting_orders
 
 
 def update_order_status(
@@ -400,6 +518,10 @@ def update_order_status(
 
     When an order moves to PREPARING, the branch kitchen capacity
     is checked before allowing the transition.
+
+    When an order moves to READY, waiting REGISTERED orders are
+    automatically promoted to PREPARING when kitchen capacity
+    becomes available.
 
     When an order moves to COMPLETED, the required inventory is
     automatically consumed using FEFO in the same transaction.
@@ -450,13 +572,15 @@ def update_order_status(
         # -----------------------------------------------------
         if new_status == OrderStatus.PREPARING:
 
-            branch = db.scalar(
-                select(Branch)
-                .where(
-                    Branch.id == order.branch_id,
-                    Branch.tenant_id == tenant_id,
+            branch = (
+                db.scalar(
+                    select(Branch)
+                    .where(
+                        Branch.id == order.branch_id,
+                        Branch.tenant_id == tenant_id,
+                    )
+                    .with_for_update()
                 )
-                .with_for_update()
             )
 
             if branch is None:
@@ -515,7 +639,7 @@ def update_order_status(
             order.inventory_consumed_at = datetime.now(timezone.utc)
 
         # -----------------------------------------------------
-        # 3. Update status
+        # 3. Update current order status
         # -----------------------------------------------------
         old_status = order.status
 
@@ -535,11 +659,31 @@ def update_order_status(
             to_status=getattr(new_status, "value", new_status),
         )
 
+        # -----------------------------------------------------
+        # 4. Promote waiting orders when a PREPARING slot
+        #    becomes available
+        # -----------------------------------------------------
+        if (
+            old_status == OrderStatus.PREPARING
+            and new_status == OrderStatus.READY
+        ):
+            db.flush()
+
+            _promote_waiting_orders(
+                db=db,
+                tenant_id=tenant_id,
+                branch_id=order.branch_id,
+                repository=repository,
+            )
+
+        # -----------------------------------------------------
+        # 5. Commit the whole transaction
+        # -----------------------------------------------------
         db.commit()
         db.refresh(order)
 
         # -----------------------------------------------------
-        # 4. Load order items for the response
+        # 6. Load order items for the response
         # -----------------------------------------------------
         items = repository.get_items(
             order_id=order.id,
@@ -922,19 +1066,20 @@ def get_kitchen_orders(
         )
     )
 
-    expected_preparation_seconds = None
-    expected_preparation_minutes = None
-
-    if historical_durations:
-        expected_preparation_seconds = round(
-            sum(historical_durations) / len(historical_durations),
-            2,
+    expected_preparation_seconds = (
+        _get_expected_preparation_seconds(
+            historical_durations
         )
+    )
 
-        expected_preparation_minutes = round(
+    expected_preparation_minutes = (
+        round(
             expected_preparation_seconds / 60,
             2,
         )
+        if expected_preparation_seconds is not None
+        else None
+    )
 
     result = []
 
@@ -1144,20 +1289,20 @@ def get_kitchen_queue(
         )
     )
 
-    expected_preparation_seconds = None
-    expected_preparation_minutes = None
-
-    if historical_durations:
-        expected_preparation_seconds = round(
-            sum(historical_durations)
-            / len(historical_durations),
-            2,
+    expected_preparation_seconds = (
+        _get_expected_preparation_seconds(
+            historical_durations
         )
+    )
 
-        expected_preparation_minutes = round(
+    expected_preparation_minutes = (
+        round(
             expected_preparation_seconds / 60,
             2,
         )
+        if expected_preparation_seconds is not None
+        else None
+    )
 
     queue = []
 
