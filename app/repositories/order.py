@@ -249,3 +249,52 @@ class OrderRepository:
         )
 
         return list(self.db.scalars(statement).all())
+    
+    def get_kitchen_preparation_durations_in_range(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID,
+        start_at=None,
+        end_at=None,
+    ) -> list[float]:
+        """
+        Return kitchen preparation durations optionally limited
+        by the order ready timestamp.
+        """
+
+        statement = (
+            select(
+                Order.preparing_at,
+                Order.ready_at,
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.branch_id == branch_id,
+                Order.preparing_at.is_not(None),
+                Order.ready_at.is_not(None),
+            )
+        )
+
+        if start_at is not None:
+            statement = statement.where(
+                Order.ready_at >= start_at,
+            )
+
+        if end_at is not None:
+            statement = statement.where(
+                Order.ready_at <= end_at,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        durations = []
+
+        for preparing_at, ready_at in rows:
+            duration = (
+                ready_at - preparing_at
+            ).total_seconds()
+
+            if duration >= 0:
+                durations.append(duration)
+
+        return durations

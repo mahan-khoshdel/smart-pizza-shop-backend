@@ -1567,3 +1567,116 @@ def get_kitchen_waiting_queue(
         "total_waiting": len(queue),
         "queue": queue,
     }
+    
+    
+def get_kitchen_performance_summary(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    start_at: datetime | None = None,
+    end_at: datetime | None = None,
+) -> dict:
+    """
+    Return summarized kitchen performance for a branch.
+
+    Prepared orders are filtered by their ready timestamp.
+    """
+
+    repository = OrderRepository(db)
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    if (
+        start_at is not None
+        and end_at is not None
+        and start_at > end_at
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_at must be earlier than or equal to end_at.",
+        )
+
+    durations = (
+        repository.get_kitchen_preparation_durations_in_range(
+            tenant_id=tenant_id,
+            branch_id=branch_id,
+            start_at=start_at,
+            end_at=end_at,
+        )
+    )
+
+    prepared_order_count = len(durations)
+
+    if prepared_order_count == 0:
+        return {
+            "branch_id": branch_id,
+            "prepared_order_count": 0,
+            "average_preparation_seconds": None,
+            "average_preparation_minutes": None,
+            "fastest_preparation_seconds": None,
+            "slowest_preparation_seconds": None,
+            "expected_preparation_seconds": None,
+            "expected_preparation_minutes": None,
+            "overdue_order_count": 0,
+        }
+
+    average_seconds = (
+        sum(durations) / prepared_order_count
+    )
+
+    fastest_seconds = min(durations)
+    slowest_seconds = max(durations)
+
+    expected_seconds = (
+        _get_expected_preparation_seconds(durations)
+    )
+
+    expected_minutes = (
+        round(expected_seconds / 60, 2)
+        if expected_seconds is not None
+        else None
+    )
+
+    overdue_order_count = 0
+
+    if expected_seconds is not None:
+        overdue_order_count = sum(
+            1
+            for duration in durations
+            if duration > expected_seconds
+        )
+
+    return {
+        "branch_id": branch_id,
+        "prepared_order_count": prepared_order_count,
+        "average_preparation_seconds": round(
+            average_seconds,
+            2,
+        ),
+        "average_preparation_minutes": round(
+            average_seconds / 60,
+            2,
+        ),
+        "fastest_preparation_seconds": round(
+            fastest_seconds,
+            2,
+        ),
+        "slowest_preparation_seconds": round(
+            slowest_seconds,
+            2,
+        ),
+        "expected_preparation_seconds": expected_seconds,
+        "expected_preparation_minutes": expected_minutes,
+        "overdue_order_count": overdue_order_count,
+    }

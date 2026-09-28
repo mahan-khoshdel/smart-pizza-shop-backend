@@ -1,11 +1,13 @@
 from uuid import UUID
 
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user_data
 from app.database.connection import get_db
 from app.database.models.order import OrderStatus
+from app.schemas.kitchen import KitchenPerformanceSummaryResponse
 from app.schemas.kitchen import KitchenQueueResponse
 from app.schemas.kitchen import KitchenWaitingQueueResponse
 from app.schemas.order import (
@@ -23,6 +25,7 @@ from app.services.order import (
     create_order,
     get_kitchen_orders,
     get_kitchen_performance,
+    get_kitchen_performance_summary,
     get_kitchen_queue,
     get_kitchen_waiting_queue,
     get_kitchen_workload,
@@ -273,6 +276,29 @@ def get_kitchen_performance_endpoint(
         db=db,
         tenant_id=current_user_data["tenant_id"],
         branch_id=branch_id,
+    )
+
+    
+@router.get(
+    "/kitchen/performance/summary",
+    response_model=KitchenPerformanceSummaryResponse,
+)
+def get_kitchen_performance_summary_endpoint(
+    branch_id: UUID,
+    start_at: datetime | None = None,
+    end_at: datetime | None = None,
+    current_user_data: dict = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return summarized kitchen performance for a branch.
+    """
+    return get_kitchen_performance_summary(
+        db=db,
+        tenant_id=current_user_data["tenant_id"],
+        branch_id=branch_id,
+        start_at=start_at,
+        end_at=end_at,
     )
 
 

@@ -57,3 +57,22 @@ class KitchenWaitingQueueResponse(BaseModel):
     capacity_available: int
     total_waiting: int
     queue: list[KitchenWaitingOrderResponse]
+
+    
+class KitchenPerformanceSummaryResponse(BaseModel):
+    """Represent summarized kitchen performance for a branch."""
+
+    branch_id: UUID
+
+    prepared_order_count: int
+
+    average_preparation_seconds: float | None
+    average_preparation_minutes: float | None
+
+    fastest_preparation_seconds: float | None
+    slowest_preparation_seconds: float | None
+
+    expected_preparation_seconds: float | None
+    expected_preparation_minutes: float | None
+
+    overdue_order_count: int
