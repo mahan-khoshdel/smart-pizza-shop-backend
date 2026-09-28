@@ -94,3 +94,30 @@ class InventoryItemRepository:
         )
 
         return int(self.db.scalar(statement) or 0)
+    
+    def get_active_batches_for_valuation(
+        self,
+        branch_id: UUID,
+    ) -> list[tuple[InventoryBatch, InventoryItem]]:
+        """
+        Return active non-empty inventory batches for valuation.
+        """
+
+        statement = (
+            select(
+                InventoryBatch,
+                InventoryItem,
+            )
+            .join(
+                InventoryItem,
+                InventoryItem.id == InventoryBatch.inventory_item_id,
+            )
+            .where(
+                InventoryItem.branch_id == branch_id,
+                InventoryItem.is_active.is_(True),
+                InventoryBatch.is_active.is_(True),
+                InventoryBatch.quantity > 0,
+            )
+        )
+
+        return list(self.db.execute(statement).all())

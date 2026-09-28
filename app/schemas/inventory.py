@@ -53,3 +53,17 @@ class InventorySummaryResponse(BaseModel):
     expiring_soon_batch_count: int
 
     expiring_soon_days: int
+    
+    
+class InventoryValuationResponse(BaseModel):
+    """Represent the monetary value of inventory for a branch."""
+
+    branch_id: UUID
+
+    total_inventory_value: Decimal
+    low_stock_inventory_value: Decimal
+
+    expired_inventory_value: Decimal
+    expiring_soon_inventory_value: Decimal
+
+    expiring_soon_days: int

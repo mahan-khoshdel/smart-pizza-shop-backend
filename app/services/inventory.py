@@ -349,3 +349,95 @@ def get_inventory_summary(
         ),
         "expiring_soon_days": expiring_soon_days,
     }
+    
+    
+def get_inventory_valuation(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    expiring_soon_days: int = 7,
+) -> dict:
+    """
+    Return monetary inventory valuation for a branch.
+    """
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    if expiring_soon_days < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="expiring_soon_days must be zero or greater.",
+        )
+
+    repository = InventoryItemRepository(db)
+
+    batch_rows = repository.get_active_batches_for_valuation(
+        branch_id=branch_id,
+    )
+
+    now = datetime.now(timezone.utc)
+
+    total_inventory_value = Decimal("0")
+    low_stock_inventory_value = Decimal("0")
+    expired_inventory_value = Decimal("0")
+    expiring_soon_inventory_value = Decimal("0")
+
+    low_stock_items = {
+        item.id
+        for item in repository.get_low_stock_items(
+            branch_id=branch_id,
+        )
+    }
+
+    for batch, inventory_item in batch_rows:
+        batch_value = (
+            batch.quantity * batch.cost_per_unit
+        )
+
+        total_inventory_value += batch_value
+
+        if inventory_item.id in low_stock_items:
+            low_stock_inventory_value += batch_value
+
+        if batch.expires_at is not None:
+            expires_at = batch.expires_at
+
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(
+                    tzinfo=timezone.utc,
+                )
+
+            remaining_seconds = (
+                expires_at - now
+            ).total_seconds()
+
+            if remaining_seconds < 0:
+                expired_inventory_value += batch_value
+
+            elif (
+                remaining_seconds
+                <= expiring_soon_days * 86400
+            ):
+                expiring_soon_inventory_value += batch_value
+
+    return {
+        "branch_id": branch_id,
+        "total_inventory_value": total_inventory_value,
+        "low_stock_inventory_value": low_stock_inventory_value,
+        "expired_inventory_value": expired_inventory_value,
+        "expiring_soon_inventory_value": (
+            expiring_soon_inventory_value
+        ),
+        "expiring_soon_days": expiring_soon_days,
+    }

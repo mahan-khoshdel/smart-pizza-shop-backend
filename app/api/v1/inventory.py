@@ -8,6 +8,7 @@ from app.core.dependencies import get_db
 from app.schemas.inventory import (
     ExpirySummaryResponse,
     InventorySummaryResponse,
+    InventoryValuationResponse,
     LowStockResponse,
 )
 from app.schemas.inventory_consume import InventoryConsumeRequest
@@ -15,6 +16,7 @@ from app.services.inventory import (
     consume_inventory,
     get_expiry_summary,
     get_inventory_summary,
+    get_inventory_valuation,
     get_low_stock_items,
 )
 
@@ -95,6 +97,34 @@ def get_inventory_summary_endpoint(
     """
 
     return get_inventory_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        expiring_soon_days=expiring_soon_days,
+    )
+    
+    
+@router.get(
+    "/valuation",
+    response_model=InventoryValuationResponse,
+)
+def get_inventory_valuation_endpoint(
+    branch_id: UUID,
+    expiring_soon_days: int = Query(
+        default=7,
+        ge=0,
+        le=365,
+    ),
+    current_user: dict[str, UUID] = Depends(
+        get_current_user_data,
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return monetary inventory valuation for a branch.
+    """
+
+    return get_inventory_valuation(
         db=db,
         tenant_id=current_user["tenant_id"],
         branch_id=branch_id,
