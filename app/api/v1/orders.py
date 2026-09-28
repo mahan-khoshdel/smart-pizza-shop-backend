@@ -10,6 +10,10 @@ from app.database.models.order import OrderStatus
 from app.schemas.kitchen import KitchenPerformanceSummaryResponse
 from app.schemas.kitchen import KitchenQueueResponse
 from app.schemas.kitchen import KitchenWaitingQueueResponse
+from app.schemas.kitchen import (
+    KitchenPerformancePeriod,
+    KitchenPerformanceSummaryResponse,
+)
 from app.schemas.order import (
     KitchenPerformanceResponse,
     KitchenWorkloadResponse,
@@ -285,6 +289,7 @@ def get_kitchen_performance_endpoint(
 )
 def get_kitchen_performance_summary_endpoint(
     branch_id: UUID,
+    period: KitchenPerformancePeriod = KitchenPerformancePeriod.CUSTOM,
     start_at: datetime | None = None,
     end_at: datetime | None = None,
     current_user_data: dict = Depends(get_current_user_data),
@@ -297,6 +302,7 @@ def get_kitchen_performance_summary_endpoint(
         db=db,
         tenant_id=current_user_data["tenant_id"],
         branch_id=branch_id,
+        period=period,
         start_at=start_at,
         end_at=end_at,
     )

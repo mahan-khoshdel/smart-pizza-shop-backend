@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from app.services.inventory import consume_inventory
 
@@ -16,6 +17,7 @@ from app.repositories.order_status_history import OrderStatusHistoryRepository
 from app.database.models.product_variant import ProductVariant
 from app.repositories.order import OrderRepository
 from app.schemas.order import OrderCreate
+from app.schemas.kitchen import KitchenPerformancePeriod
 from app.database.models.recipe_item import RecipeItem
 from app.repositories.recipe import RecipeRepository
 
@@ -1567,19 +1569,105 @@ def get_kitchen_waiting_queue(
         "total_waiting": len(queue),
         "queue": queue,
     }
+
+    
+def _resolve_kitchen_performance_range(
+    period: KitchenPerformancePeriod,
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> tuple[datetime | None, datetime | None]:
+    """
+    Resolve a predefined or custom performance time range.
+
+    Predefined periods use Asia/Tehran local time.
+    """
+
+    if period == KitchenPerformancePeriod.CUSTOM:
+        if start_at is None or end_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "start_at and end_at are required "
+                    "for CUSTOM period."
+                ),
+            )
+
+        if start_at > end_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="start_at must be earlier than or equal to end_at.",
+            )
+
+        return start_at, end_at
+
+    if start_at is not None or end_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "start_at and end_at must not be provided "
+                "with a predefined period."
+            ),
+        )
+
+    local_timezone = ZoneInfo("Asia/Tehran")
+    now = datetime.now(local_timezone)
+
+    if period == KitchenPerformancePeriod.TODAY:
+        start_local = now.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        return start_local.astimezone(timezone.utc), now.astimezone(
+            timezone.utc
+        )
+
+    if period == KitchenPerformancePeriod.LAST_7_DAYS:
+        start_local = (
+            now - timedelta(days=6)
+        ).replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        return start_local.astimezone(timezone.utc), now.astimezone(
+            timezone.utc
+        )
+
+    if period == KitchenPerformancePeriod.THIS_MONTH:
+        start_local = now.replace(
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        return start_local.astimezone(timezone.utc), now.astimezone(
+            timezone.utc
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Unsupported performance period.",
+    )
     
     
 def get_kitchen_performance_summary(
     db: Session,
     tenant_id: UUID,
     branch_id: UUID,
+    period: KitchenPerformancePeriod,
     start_at: datetime | None = None,
     end_at: datetime | None = None,
 ) -> dict:
     """
-    Return summarized kitchen performance for a branch.
-
-    Prepared orders are filtered by their ready timestamp.
+    Return summarized kitchen performance for a branch
+    using a predefined or custom time period.
     """
 
     repository = OrderRepository(db)
@@ -1597,22 +1685,20 @@ def get_kitchen_performance_summary(
             detail="Branch not found.",
         )
 
-    if (
-        start_at is not None
-        and end_at is not None
-        and start_at > end_at
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_at must be earlier than or equal to end_at.",
+    resolved_start_at, resolved_end_at = (
+        _resolve_kitchen_performance_range(
+            period=period,
+            start_at=start_at,
+            end_at=end_at,
         )
+    )
 
     durations = (
         repository.get_kitchen_preparation_durations_in_range(
             tenant_id=tenant_id,
             branch_id=branch_id,
-            start_at=start_at,
-            end_at=end_at,
+            start_at=resolved_start_at,
+            end_at=resolved_end_at,
         )
     )
 
@@ -1648,14 +1734,12 @@ def get_kitchen_performance_summary(
         else None
     )
 
-    overdue_order_count = 0
-
-    if expected_seconds is not None:
-        overdue_order_count = sum(
-            1
-            for duration in durations
-            if duration > expected_seconds
-        )
+    overdue_order_count = sum(
+        1
+        for duration in durations
+        if expected_seconds is not None
+        and duration > expected_seconds
+    )
 
     return {
         "branch_id": branch_id,

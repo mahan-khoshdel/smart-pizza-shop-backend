@@ -1,7 +1,17 @@
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel
+
+
+class KitchenPerformancePeriod(str, Enum):
+    """Supported time periods for kitchen performance reports."""
+
+    TODAY = "TODAY"
+    LAST_7_DAYS = "LAST_7_DAYS"
+    THIS_MONTH = "THIS_MONTH"
+    CUSTOM = "CUSTOM"
 
 
 class KitchenQueueOrderResponse(BaseModel):
