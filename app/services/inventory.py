@@ -285,3 +285,67 @@ def get_expiry_summary(
         "expiring_soon_count": expiring_soon_count,
         "batches": batches,
     }
+    
+    
+def get_inventory_summary(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    expiring_soon_days: int = 7,
+) -> dict:
+    """
+    Return a summarized inventory status for a branch.
+    """
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    if expiring_soon_days < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="expiring_soon_days must be zero or greater.",
+        )
+
+    repository = InventoryItemRepository(db)
+
+    active_inventory_item_count = (
+        repository.get_active_item_count(
+            branch_id=branch_id,
+        )
+    )
+
+    low_stock_items = repository.get_low_stock_items(
+        branch_id=branch_id,
+    )
+
+    expiry_summary = get_expiry_summary(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        expiring_soon_days=expiring_soon_days,
+    )
+
+    return {
+        "branch_id": branch_id,
+        "active_inventory_item_count": (
+            active_inventory_item_count
+        ),
+        "low_stock_count": len(low_stock_items),
+        "expired_batch_count": (
+            expiry_summary["expired_count"]
+        ),
+        "expiring_soon_batch_count": (
+            expiry_summary["expiring_soon_count"]
+        ),
+        "expiring_soon_days": expiring_soon_days,
+    }

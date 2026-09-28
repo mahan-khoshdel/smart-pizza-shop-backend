@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database.models.inventory_batch import InventoryBatch
@@ -79,3 +79,18 @@ class InventoryItemRepository:
         )
 
         return list(self.db.execute(statement).all())
+    
+    def get_active_item_count(
+        self,
+        branch_id: UUID,
+    ) -> int:
+        """Return the number of active inventory items at a branch."""
+
+        statement = select(
+            func.count(InventoryItem.id)
+        ).where(
+            InventoryItem.branch_id == branch_id,
+            InventoryItem.is_active.is_(True),
+        )
+
+        return int(self.db.scalar(statement) or 0)

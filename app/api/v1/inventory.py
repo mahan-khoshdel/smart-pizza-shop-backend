@@ -7,12 +7,14 @@ from app.core.auth import get_current_user_data
 from app.core.dependencies import get_db
 from app.schemas.inventory import (
     ExpirySummaryResponse,
+    InventorySummaryResponse,
     LowStockResponse,
 )
 from app.schemas.inventory_consume import InventoryConsumeRequest
 from app.services.inventory import (
     consume_inventory,
     get_expiry_summary,
+    get_inventory_summary,
     get_low_stock_items,
 )
 
@@ -65,6 +67,34 @@ def get_expiry_summary_endpoint(
     """
 
     return get_expiry_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        expiring_soon_days=expiring_soon_days,
+    )
+    
+    
+@router.get(
+    "/summary",
+    response_model=InventorySummaryResponse,
+)
+def get_inventory_summary_endpoint(
+    branch_id: UUID,
+    expiring_soon_days: int = Query(
+        default=7,
+        ge=0,
+        le=365,
+    ),
+    current_user: dict[str, UUID] = Depends(
+        get_current_user_data,
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return summarized inventory status for a branch.
+    """
+
+    return get_inventory_summary(
         db=db,
         tenant_id=current_user["tenant_id"],
         branch_id=branch_id,

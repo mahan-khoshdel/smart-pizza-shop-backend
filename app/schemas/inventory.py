@@ -39,3 +39,17 @@ class ExpirySummaryResponse(BaseModel):
     expired_count: int
     expiring_soon_count: int
     batches: list[ExpiryBatchResponse]
+
+    
+class InventorySummaryResponse(BaseModel):
+    """Represent inventory summary information for a branch."""
+
+    branch_id: UUID
+
+    active_inventory_item_count: int
+    low_stock_count: int
+
+    expired_batch_count: int
+    expiring_soon_batch_count: int
+
+    expiring_soon_days: int
