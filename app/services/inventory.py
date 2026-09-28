@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -5,10 +6,12 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.database.models.branch import Branch
 from app.database.models.inventory_batch import InventoryBatch
 from app.database.models.inventory_item import InventoryItem
 from app.database.models.inventory_movement import InventoryMovement
 from app.repositories.branch import BranchRepository
+from app.repositories.inventory import InventoryItemRepository
 
 
 def consume_inventory(
@@ -140,3 +143,145 @@ def consume_inventory(
     except Exception:
         db.rollback()
         raise
+    
+    
+def get_low_stock_items(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+) -> list[dict]:
+    """
+    Return active inventory items that are at or below reorder level.
+    """
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    repository = InventoryItemRepository(db)
+
+    items = repository.get_low_stock_items(
+        branch_id=branch_id,
+    )
+
+    return [
+        {
+            "inventory_item_id": item.id,
+            "branch_id": item.branch_id,
+            "ingredient_id": item.ingredient_id,
+            "quantity": item.quantity,
+            "reorder_level": item.reorder_level,
+            "shortage_quantity": max(
+                item.reorder_level - item.quantity,
+                Decimal("0"),
+            ),
+        }
+        for item in items
+    ]
+
+
+def get_expiry_summary(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    expiring_soon_days: int = 7,
+) -> dict:
+    """
+    Return expired and soon-to-expire inventory batches.
+    """
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    if expiring_soon_days < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="expiring_soon_days must be zero or greater.",
+        )
+
+    repository = InventoryItemRepository(db)
+
+    batch_rows = repository.get_expiring_batches(
+        branch_id=branch_id,
+    )
+
+    now = datetime.now(timezone.utc)
+
+    batches = []
+    expired_count = 0
+    expiring_soon_count = 0
+
+    for batch, inventory_item in batch_rows:
+        expires_at = batch.expires_at
+
+        if expires_at is None:
+            continue
+
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(
+                tzinfo=timezone.utc,
+            )
+
+        remaining_seconds = (
+            expires_at - now
+        ).total_seconds()
+
+        days_until_expiry = int(
+            remaining_seconds // 86400
+        )
+
+        is_expired = remaining_seconds < 0
+
+        is_expiring_soon = (
+            not is_expired
+            and remaining_seconds
+            <= expiring_soon_days * 86400
+        )
+
+        if is_expired:
+            expired_count += 1
+
+        elif is_expiring_soon:
+            expiring_soon_count += 1
+
+        batches.append(
+            {
+                "inventory_batch_id": batch.id,
+                "inventory_item_id": batch.inventory_item_id,
+                "branch_id": inventory_item.branch_id,
+                "ingredient_id": inventory_item.ingredient_id,
+                "batch_number": batch.batch_number,
+                "quantity": batch.quantity,
+                "expires_at": expires_at,
+                "days_until_expiry": days_until_expiry,
+                "is_expired": is_expired,
+                "is_expiring_soon": is_expiring_soon,
+            }
+        )
+
+    return {
+        "branch_id": branch_id,
+        "expiring_soon_days": expiring_soon_days,
+        "expired_count": expired_count,
+        "expiring_soon_count": expiring_soon_count,
+        "batches": batches,
+    }
