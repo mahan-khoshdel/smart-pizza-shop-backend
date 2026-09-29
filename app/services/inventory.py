@@ -441,3 +441,89 @@ def get_inventory_valuation(
         ),
         "expiring_soon_days": expiring_soon_days,
     }
+    
+    
+def get_inventory_consumption_analytics(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    start_at: datetime | None = None,
+    end_at: datetime | None = None,
+) -> dict:
+    """
+    Return inventory consumption analytics for a branch.
+
+    Only SALE_CONSUMPTION movements are included.
+    """
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    if (
+        start_at is not None
+        and end_at is not None
+        and start_at > end_at
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "start_at must be earlier than or equal to end_at."
+            ),
+        )
+
+    repository = InventoryItemRepository(db)
+
+    rows = repository.get_consumption_analytics(
+        branch_id=branch_id,
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    ingredients = []
+
+    total_movement_count = 0
+    total_consumption_value = Decimal("0")
+
+    for (
+        ingredient_id,
+        movement_count,
+        consumed_quantity,
+        consumption_value,
+    ) in rows:
+        consumed_quantity = (
+            consumed_quantity or Decimal("0")
+        )
+
+        consumption_value = (
+            consumption_value or Decimal("0")
+        )
+
+        total_movement_count += movement_count
+        total_consumption_value += consumption_value
+
+        ingredients.append(
+            {
+                "ingredient_id": ingredient_id,
+                "movement_count": movement_count,
+                "consumed_quantity": consumed_quantity,
+                "consumption_value": consumption_value,
+            }
+        )
+
+    return {
+        "branch_id": branch_id,
+        "total_movement_count": total_movement_count,
+        "ingredient_count": len(ingredients),
+        "total_consumption_value": total_consumption_value,
+        "ingredients": ingredients,
+    }

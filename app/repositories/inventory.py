@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database.models.inventory_batch import InventoryBatch
 from app.database.models.inventory_item import InventoryItem
+from app.database.models.inventory_movement import InventoryMovement
 
 
 class InventoryItemRepository:
@@ -121,3 +122,81 @@ class InventoryItemRepository:
         )
 
         return list(self.db.execute(statement).all())
+    
+    def get_consumption_analytics(
+        self,
+        branch_id: UUID,
+        start_at=None,
+        end_at=None,
+    ) -> list[tuple[UUID, int, object, object]]:
+        """
+        Return aggregated sale-consumption analytics by ingredient.
+        """
+
+        statement = (
+            select(
+                InventoryItem.ingredient_id,
+                func.count(InventoryMovement.id).label(
+                    "movement_count"
+                ),
+                func.sum(
+                    InventoryMovement.quantity
+                ).label(
+                    "consumed_quantity"
+                ),
+                func.sum(
+                    InventoryMovement.quantity
+                    * InventoryBatch.cost_per_unit
+                ).label(
+                    "consumption_value"
+                ),
+            )
+            .join(
+                InventoryMovement,
+                InventoryMovement.inventory_item_id
+                == InventoryItem.id,
+            )
+            .join(
+                InventoryBatch,
+                InventoryBatch.id
+                == InventoryMovement.inventory_batch_id,
+            )
+            .where(
+                InventoryItem.branch_id == branch_id,
+                InventoryMovement.movement_type
+                == "SALE_CONSUMPTION",
+            )
+            .group_by(
+                InventoryItem.ingredient_id,
+            )
+            .order_by(
+                InventoryItem.ingredient_id.asc(),
+            )
+        )
+
+        if start_at is not None:
+            statement = statement.where(
+                InventoryMovement.created_at >= start_at,
+            )
+
+        if end_at is not None:
+            statement = statement.where(
+                InventoryMovement.created_at <= end_at,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            (
+                ingredient_id,
+                int(movement_count),
+                consumed_quantity,
+                consumption_value,
+            )
+            for (
+                ingredient_id,
+                movement_count,
+                consumed_quantity,
+                consumption_value,
+            ) in rows
+        ]

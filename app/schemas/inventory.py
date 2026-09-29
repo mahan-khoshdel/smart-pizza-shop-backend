@@ -67,3 +67,24 @@ class InventoryValuationResponse(BaseModel):
     expiring_soon_inventory_value: Decimal
 
     expiring_soon_days: int
+    
+
+class InventoryConsumptionIngredientResponse(BaseModel):
+    """Represent consumption analytics for one ingredient."""
+
+    ingredient_id: UUID
+    movement_count: int
+    consumed_quantity: Decimal
+    consumption_value: Decimal
+
+
+class InventoryConsumptionResponse(BaseModel):
+    """Represent inventory consumption analytics for a branch."""
+
+    branch_id: UUID
+
+    total_movement_count: int
+    ingredient_count: int
+    total_consumption_value: Decimal
+
+    ingredients: list[InventoryConsumptionIngredientResponse]
