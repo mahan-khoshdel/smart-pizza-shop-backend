@@ -7,6 +7,7 @@ from app.api.v1.customer_addresses import (
     router as customer_addresses_router,
 )
 from app.api.v1.customers import router as customers_router
+from app.api.v1.expenses import router as expenses_router
 from app.api.v1.inventory import router as inventory_router
 from app.api.v1.orders import router as orders_router
 from app.api.v1.products import router as products_router
@@ -72,5 +73,10 @@ app.include_router(
 
 app.include_router(
     branches_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    expenses_router,
     prefix="/api/v1",
 )

@@ -2,6 +2,7 @@ from app.database.models.branch import Branch
 from app.database.models.category import Category
 from app.database.models.customer import Customer
 from app.database.models.customer_address import CustomerAddress
+from app.database.models.expense import Expense, ExpenseCategory
 from app.database.models.ingredient import Ingredient
 from app.database.models.inventory_batch import InventoryBatch
 from app.database.models.inventory_item import InventoryItem
@@ -28,6 +29,8 @@ __all__ = [
     "Category",
     "Customer",
     "CustomerAddress",
+    "Expense",
+    "ExpenseCategory",
     "Ingredient",
     "InventoryBatch",
     "InventoryItem",
