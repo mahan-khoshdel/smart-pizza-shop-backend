@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel
+from pydantic import Field
 
 
 class LowStockResponse(BaseModel):
@@ -88,3 +89,43 @@ class InventoryConsumptionResponse(BaseModel):
     total_consumption_value: Decimal
 
     ingredients: list[InventoryConsumptionIngredientResponse]
+
+    
+class InventoryWasteCreate(BaseModel):
+    """Represent a request to record inventory waste."""
+
+    branch_id: UUID
+    ingredient_id: UUID
+    quantity: Decimal = Field(gt=0)
+    note: str | None = None
+
+
+class InventoryWasteResponse(BaseModel):
+    """Represent a recorded inventory waste operation."""
+
+    branch_id: UUID
+    ingredient_id: UUID
+    quantity: Decimal
+    waste_value: Decimal
+    movement_count: int
+
+
+class InventoryWasteIngredientResponse(BaseModel):
+    """Represent waste analytics for one ingredient."""
+
+    ingredient_id: UUID
+    movement_count: int
+    wasted_quantity: Decimal
+    waste_value: Decimal
+
+
+class InventoryWasteAnalyticsResponse(BaseModel):
+    """Represent inventory waste analytics for a branch."""
+
+    branch_id: UUID
+    total_movement_count: int
+    ingredient_count: int
+    total_wasted_quantity: Decimal
+    total_waste_value: Decimal
+
+    ingredients: list[InventoryWasteIngredientResponse]

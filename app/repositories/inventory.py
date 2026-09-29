@@ -200,3 +200,80 @@ class InventoryItemRepository:
                 consumption_value,
             ) in rows
         ]
+        
+    def get_waste_analytics(
+        self,
+        branch_id: UUID,
+        start_at=None,
+        end_at=None,
+    ) -> list[tuple[UUID, int, object, object]]:
+        """
+        Return aggregated waste analytics by ingredient.
+        """
+
+        statement = (
+            select(
+                InventoryItem.ingredient_id,
+                func.count(InventoryMovement.id).label(
+                    "movement_count"
+                ),
+                func.sum(
+                    InventoryMovement.quantity
+                ).label(
+                    "wasted_quantity"
+                ),
+                func.sum(
+                    InventoryMovement.quantity
+                    * InventoryBatch.cost_per_unit
+                ).label(
+                    "waste_value"
+                ),
+            )
+            .join(
+                InventoryMovement,
+                InventoryMovement.inventory_item_id
+                == InventoryItem.id,
+            )
+            .join(
+                InventoryBatch,
+                InventoryBatch.id
+                == InventoryMovement.inventory_batch_id,
+            )
+            .where(
+                InventoryItem.branch_id == branch_id,
+                InventoryMovement.movement_type == "WASTE",
+            )
+            .group_by(
+                InventoryItem.ingredient_id,
+            )
+            .order_by(
+                InventoryItem.ingredient_id.asc(),
+            )
+        )
+
+        if start_at is not None:
+            statement = statement.where(
+                InventoryMovement.created_at >= start_at,
+            )
+
+        if end_at is not None:
+            statement = statement.where(
+                InventoryMovement.created_at <= end_at,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            (
+                ingredient_id,
+                int(movement_count),
+                wasted_quantity,
+                waste_value,
+            )
+            for (
+                ingredient_id,
+                movement_count,
+                wasted_quantity,
+                waste_value,
+            ) in rows
+        ]

@@ -527,3 +527,219 @@ def get_inventory_consumption_analytics(
         "total_consumption_value": total_consumption_value,
         "ingredients": ingredients,
     }
+    
+
+def record_inventory_waste(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    ingredient_id: UUID,
+    quantity: Decimal,
+    note: str | None = None,
+) -> dict:
+    """
+    Record inventory waste using FEFO and reduce current stock.
+
+    Each consumed batch creates a WASTE inventory movement.
+    """
+
+    branch_repository = BranchRepository(db)
+
+    branch = branch_repository.get_by_id(
+        branch_id=branch_id,
+        tenant_id=tenant_id,
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    if quantity <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Quantity must be greater than zero.",
+        )
+
+    inventory_item = db.scalar(
+        select(InventoryItem).where(
+            InventoryItem.branch_id == branch_id,
+            InventoryItem.ingredient_id == ingredient_id,
+        )
+    )
+
+    if inventory_item is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Inventory item not found.",
+        )
+
+    if inventory_item.quantity < quantity:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Insufficient inventory.",
+        )
+
+    batches = db.scalars(
+        select(InventoryBatch)
+        .where(
+            InventoryBatch.inventory_item_id == inventory_item.id,
+            InventoryBatch.is_active.is_(True),
+            InventoryBatch.quantity > 0,
+        )
+        .order_by(
+            InventoryBatch.expires_at.asc().nulls_last(),
+            InventoryBatch.received_at.asc(),
+        )
+    ).all()
+
+    remaining = quantity
+    total_waste_value = Decimal("0")
+    movement_count = 0
+
+    try:
+        for batch in batches:
+            if remaining <= 0:
+                break
+
+            wasted_quantity = min(
+                batch.quantity,
+                remaining,
+            )
+
+            batch.quantity -= wasted_quantity
+            remaining -= wasted_quantity
+
+            total_waste_value += (
+                wasted_quantity * batch.cost_per_unit
+            )
+
+            movement = InventoryMovement(
+                inventory_item_id=inventory_item.id,
+                inventory_batch_id=batch.id,
+                purchase_item_id=None,
+                movement_type="WASTE",
+                quantity=wasted_quantity,
+                note=note,
+            )
+
+            db.add(movement)
+
+            movement_count += 1
+
+            if batch.quantity == 0:
+                batch.is_active = False
+
+        if remaining > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Insufficient active inventory batches.",
+            )
+
+        inventory_item.quantity -= quantity
+
+        db.commit()
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "branch_id": branch_id,
+        "ingredient_id": ingredient_id,
+        "quantity": quantity,
+        "waste_value": total_waste_value,
+        "movement_count": movement_count,
+    }
+    
+    
+def get_inventory_waste_analytics(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID,
+    start_at: datetime | None = None,
+    end_at: datetime | None = None,
+) -> dict:
+    """
+    Return inventory waste analytics for a branch.
+    """
+
+    branch = db.scalar(
+        select(Branch).where(
+            Branch.id == branch_id,
+            Branch.tenant_id == tenant_id,
+        )
+    )
+
+    if branch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found.",
+        )
+
+    if (
+        start_at is not None
+        and end_at is not None
+        and start_at > end_at
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "start_at must be earlier than or equal to end_at."
+            ),
+        )
+
+    repository = InventoryItemRepository(db)
+
+    rows = repository.get_waste_analytics(
+        branch_id=branch_id,
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    ingredients = []
+
+    total_movement_count = 0
+    total_wasted_quantity = Decimal("0")
+    total_waste_value = Decimal("0")
+
+    for (
+        ingredient_id,
+        movement_count,
+        wasted_quantity,
+        waste_value,
+    ) in rows:
+        wasted_quantity = (
+            wasted_quantity or Decimal("0")
+        )
+
+        waste_value = (
+            waste_value or Decimal("0")
+        )
+
+        total_movement_count += movement_count
+        total_wasted_quantity += wasted_quantity
+        total_waste_value += waste_value
+
+        ingredients.append(
+            {
+                "ingredient_id": ingredient_id,
+                "movement_count": movement_count,
+                "wasted_quantity": wasted_quantity,
+                "waste_value": waste_value,
+            }
+        )
+
+    return {
+        "branch_id": branch_id,
+        "total_movement_count": total_movement_count,
+        "ingredient_count": len(ingredients),
+        "total_wasted_quantity": total_wasted_quantity,
+        "total_waste_value": total_waste_value,
+        "ingredients": ingredients,
+    }
