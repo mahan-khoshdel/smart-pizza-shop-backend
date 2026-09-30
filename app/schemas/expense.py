@@ -36,3 +36,21 @@ class ExpenseListResponse(BaseModel):
 
     items: list[ExpenseResponse]
     total_count: int
+
+    
+class ExpenseCategorySummaryResponse(BaseModel):
+    """Represent expense totals for one category."""
+
+    category: ExpenseCategory
+    expense_count: int
+    total_amount: Decimal
+
+
+class ExpenseSummaryResponse(BaseModel):
+    """Represent summarized expenses."""
+
+    branch_id: UUID | None
+    expense_count: int
+    total_expense: Decimal
+
+    categories: list[ExpenseCategorySummaryResponse]

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from sqlalchemy.orm import Session
 
@@ -68,3 +68,59 @@ class ExpenseRepository:
         return list(
             self.db.scalars(statement).all()
         )
+        
+    def get_summary(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+    ) -> list[tuple[ExpenseCategory, int, object]]:
+        """Return expense totals grouped by category."""
+
+        statement = (
+            select(
+                Expense.category,
+                func.count(Expense.id).label(
+                    "expense_count"
+                ),
+                func.sum(Expense.amount).label(
+                    "total_amount"
+                ),
+            )
+            .where(
+                Expense.tenant_id == tenant_id,
+            )
+            .group_by(
+                Expense.category,
+            )
+            .order_by(
+                Expense.category.asc(),
+            )
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Expense.branch_id == branch_id,
+            )
+
+        if start_at is not None:
+            statement = statement.where(
+                Expense.expense_date >= start_at,
+            )
+
+        if end_at is not None:
+            statement = statement.where(
+                Expense.expense_date <= end_at,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            (
+                category,
+                int(expense_count),
+                total_amount,
+            )
+            for category, expense_count, total_amount in rows
+        ]

@@ -11,9 +11,11 @@ from app.schemas.expense import (
     ExpenseCreate,
     ExpenseListResponse,
     ExpenseResponse,
+    ExpenseSummaryResponse,
 )
 from app.services.expense import (
     create_expense,
+    get_expense_summary,
     get_expenses,
 )
 
@@ -22,6 +24,32 @@ router = APIRouter(
     prefix="/expenses",
     tags=["Expenses"],
 )
+
+
+@router.get(
+    "/summary",
+    response_model=ExpenseSummaryResponse,
+)
+def get_expense_summary_endpoint(
+    branch_id: UUID | None = None,
+    start_at: datetime | None = None,
+    end_at: datetime | None = None,
+    current_user: dict[str, UUID] = Depends(
+        get_current_user_data,
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return summarized expenses.
+    """
+
+    return get_expense_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        start_at=start_at,
+        end_at=end_at,
+    )
 
 
 @router.post(
