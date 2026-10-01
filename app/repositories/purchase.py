@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.database.models.ingredient import Ingredient
 from app.database.models.purchase import Purchase
 from app.database.models.purchase_item import PurchaseItem
 from app.database.models.supplier import Supplier
@@ -301,3 +302,96 @@ class PurchaseRepository:
             )
 
         return result
+    
+    def get_supplier_price_analysis(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        supplier_id: UUID | None = None,
+        ingredient_id: UUID | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict]:
+        """Return received purchase price data for supplier analysis."""
+
+        filters = [
+            Purchase.tenant_id == tenant_id,
+            Purchase.status == "RECEIVED",
+        ]
+
+        if branch_id is not None:
+            filters.append(
+                Purchase.branch_id == branch_id,
+            )
+
+        if supplier_id is not None:
+            filters.append(
+                Purchase.supplier_id == supplier_id,
+            )
+
+        if ingredient_id is not None:
+            filters.append(
+                PurchaseItem.ingredient_id == ingredient_id,
+            )
+
+        if start_date is not None:
+            filters.append(
+                Purchase.purchase_date >= start_date,
+            )
+
+        if end_date is not None:
+            filters.append(
+                Purchase.purchase_date <= end_date,
+            )
+
+        statement = (
+            select(
+                Supplier.id.label("supplier_id"),
+                Supplier.name.label("supplier_name"),
+                Ingredient.id.label("ingredient_id"),
+                Ingredient.name.label("ingredient_name"),
+                Ingredient.base_unit.label("base_unit"),
+                PurchaseItem.unit.label("unit"),
+                PurchaseItem.unit_cost.label("unit_cost"),
+                Purchase.purchase_date.label("purchase_date"),
+            )
+            .select_from(Purchase)
+            .join(
+                Supplier,
+                Supplier.id == Purchase.supplier_id,
+            )
+            .join(
+                PurchaseItem,
+                PurchaseItem.purchase_id == Purchase.id,
+            )
+            .join(
+                Ingredient,
+                Ingredient.id == PurchaseItem.ingredient_id,
+            )
+            .where(*filters)
+            .order_by(
+                Supplier.name.asc(),
+                Ingredient.name.asc(),
+                Purchase.purchase_date.asc(),
+            )
+        )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "supplier_id": row.supplier_id,
+                "supplier_name": row.supplier_name,
+                "ingredient_id": row.ingredient_id,
+                "ingredient_name": row.ingredient_name,
+                "base_unit": row.base_unit,
+                "unit": getattr(
+                    row.unit,
+                    "value",
+                    row.unit,
+                ),
+                "unit_cost": row.unit_cost,
+                "purchase_date": row.purchase_date,
+            }
+            for row in rows
+        ]

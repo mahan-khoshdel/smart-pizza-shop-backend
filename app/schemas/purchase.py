@@ -103,3 +103,33 @@ class SupplierPerformanceResponse(BaseModel):
     """Represent supplier purchasing performance analytics."""
 
     items: list[SupplierPerformanceItem]
+
+    
+class SupplierPriceAnalysisItem(BaseModel):
+    """Represent price analysis for one supplier and ingredient."""
+
+    supplier_id: UUID
+    supplier_name: str
+
+    ingredient_id: UUID
+    ingredient_name: str
+    base_unit: str
+
+    purchase_count: int
+
+    first_unit_cost: Decimal
+    latest_unit_cost: Decimal
+    average_unit_cost: Decimal
+    minimum_unit_cost: Decimal
+    maximum_unit_cost: Decimal
+
+    price_change_percent: Decimal
+
+    first_purchase_date: datetime
+    latest_purchase_date: datetime
+
+
+class SupplierPriceAnalysisResponse(BaseModel):
+    """Represent supplier ingredient price analysis."""
+
+    items: list[SupplierPriceAnalysisItem]

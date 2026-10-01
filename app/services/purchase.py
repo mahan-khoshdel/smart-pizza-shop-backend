@@ -163,6 +163,143 @@ def get_supplier_performance(
         start_date=start_date,
         end_date=end_date,
     )
+    
+    
+def get_supplier_price_analysis(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    ingredient_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """Analyze ingredient purchase prices by supplier."""
+
+    repository = PurchaseRepository(db)
+
+    rows = repository.get_supplier_price_analysis(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        ingredient_id=ingredient_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    grouped: dict[tuple[UUID, UUID], dict] = {}
+
+    for row in rows:
+        unit = row["unit"]
+        unit_cost = Decimal(row["unit_cost"])
+
+        # Normalize purchase price to the ingredient base unit.
+        if unit == "KILOGRAM" and row["base_unit"] == "GRAM":
+            normalized_unit_cost = unit_cost / Decimal("1000")
+
+        elif (
+            unit == "LITER"
+            and row["base_unit"] == "MILLILITER"
+        ):
+            normalized_unit_cost = unit_cost / Decimal("1000")
+
+        else:
+            normalized_unit_cost = unit_cost
+
+        key = (
+            row["supplier_id"],
+            row["ingredient_id"],
+        )
+
+        if key not in grouped:
+            grouped[key] = {
+                "supplier_id": row["supplier_id"],
+                "supplier_name": row["supplier_name"],
+                "ingredient_id": row["ingredient_id"],
+                "ingredient_name": row["ingredient_name"],
+                "base_unit": row["base_unit"],
+                "purchase_count": 0,
+                "prices": [],
+                "first_purchase_date": row["purchase_date"],
+                "latest_purchase_date": row["purchase_date"],
+            }
+
+        group = grouped[key]
+
+        group["purchase_count"] += 1
+        group["prices"].append(normalized_unit_cost)
+
+        if row["purchase_date"] < group["first_purchase_date"]:
+            group["first_purchase_date"] = row["purchase_date"]
+
+        if row["purchase_date"] > group["latest_purchase_date"]:
+            group["latest_purchase_date"] = row["purchase_date"]
+
+    result = []
+
+    for group in grouped.values():
+        prices = group["prices"]
+
+        first_unit_cost = prices[0]
+        latest_unit_cost = prices[-1]
+
+        average_unit_cost = (
+            sum(prices, Decimal("0"))
+            / Decimal(str(len(prices)))
+        )
+
+        minimum_unit_cost = min(prices)
+        maximum_unit_cost = max(prices)
+
+        if first_unit_cost > 0:
+            price_change_percent = (
+                (
+                    latest_unit_cost - first_unit_cost
+                )
+                / first_unit_cost
+            ) * Decimal("100")
+        else:
+            price_change_percent = Decimal("0")
+
+        result.append(
+            {
+                "supplier_id": group["supplier_id"],
+                "supplier_name": group["supplier_name"],
+                "ingredient_id": group["ingredient_id"],
+                "ingredient_name": group["ingredient_name"],
+                "base_unit": group["base_unit"],
+                "purchase_count": group["purchase_count"],
+                "first_unit_cost": first_unit_cost.quantize(
+                    Decimal("0.01")
+                ),
+                "latest_unit_cost": latest_unit_cost.quantize(
+                    Decimal("0.01")
+                ),
+                "average_unit_cost": average_unit_cost.quantize(
+                    Decimal("0.01")
+                ),
+                "minimum_unit_cost": minimum_unit_cost.quantize(
+                    Decimal("0.01")
+                ),
+                "maximum_unit_cost": maximum_unit_cost.quantize(
+                    Decimal("0.01")
+                ),
+                "price_change_percent": price_change_percent.quantize(
+                    Decimal("0.01")
+                ),
+                "first_purchase_date": group["first_purchase_date"],
+                "latest_purchase_date": group["latest_purchase_date"],
+            }
+        )
+
+    result.sort(
+        key=lambda item: (
+            item["ingredient_name"],
+            item["supplier_name"],
+        )
+    )
+
+    return result
 
 
 def receive_purchase(
