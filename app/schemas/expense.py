@@ -23,6 +23,7 @@ class ExpenseResponse(BaseModel):
     id: UUID
     tenant_id: UUID
     branch_id: UUID
+    purchase_id: UUID | None
     category: ExpenseCategory
     amount: Decimal
     expense_date: datetime

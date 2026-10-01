@@ -20,6 +20,7 @@ from app.database.base import Base
 class ExpenseCategory(str, Enum):
     """Define the category of a business expense."""
 
+    PURCHASE = "PURCHASE"
     RENT = "RENT"
     SALARY = "SALARY"
     ELECTRICITY = "ELECTRICITY"
@@ -53,6 +54,16 @@ class Expense(Base):
             ondelete="RESTRICT",
         ),
         nullable=False,
+        index=True,
+    )
+    
+    purchase_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            "purchases.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        unique=True,
         index=True,
     )
 

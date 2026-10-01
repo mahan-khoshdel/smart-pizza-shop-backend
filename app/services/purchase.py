@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.database.models.expense import Expense, ExpenseCategory
 from app.database.models.ingredient import Ingredient
 from app.database.models.inventory_batch import InventoryBatch
 from app.database.models.inventory_item import InventoryItem
@@ -40,7 +41,7 @@ def receive_purchase(
     tenant_id: UUID,
     receive_items: list[PurchaseReceiveItem],
 ) -> None:
-    """Receive a purchase and update inventory."""
+    """Receive a purchase, update inventory, and create its expense."""
 
     purchase = get_purchase(
         db=db,
@@ -88,15 +89,19 @@ def receive_purchase(
             ),
         )
 
+    total_purchase_cost = Decimal("0")
+
     try:
         for purchase_item in purchase_items:
             receive_item = receive_items_by_id[purchase_item.id]
-            
+
             if receive_item.expires_at is not None:
                 expires_at = receive_item.expires_at
 
                 if expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    expires_at = expires_at.replace(
+                        tzinfo=timezone.utc,
+                    )
 
                 now = datetime.now(timezone.utc)
 
@@ -105,7 +110,8 @@ def receive_purchase(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=(
                             f"Expiry date for batch "
-                            f"'{receive_item.batch_number}' must be in the future."
+                            f"'{receive_item.batch_number}' "
+                            f"must be in the future."
                         ),
                     )
 
@@ -132,6 +138,7 @@ def receive_purchase(
                     quantity=Decimal("0"),
                     reorder_level=Decimal("0"),
                 )
+
                 db.add(inventory_item)
                 db.flush()
 
@@ -141,17 +148,24 @@ def receive_purchase(
                 to_unit=ingredient.base_unit,
             )
 
-            if purchase_item.unit == "KILOGRAM" and ingredient.base_unit == "GRAM":
+            if (
+                purchase_item.unit == "KILOGRAM"
+                and ingredient.base_unit == "GRAM"
+            ):
                 base_cost_per_unit = (
-                    purchase_item.unit_cost / Decimal("1000")
+                    purchase_item.unit_cost
+                    / Decimal("1000")
                 )
+
             elif (
                 purchase_item.unit == "LITER"
                 and ingredient.base_unit == "MILLILITER"
             ):
                 base_cost_per_unit = (
-                    purchase_item.unit_cost / Decimal("1000")
+                    purchase_item.unit_cost
+                    / Decimal("1000")
                 )
+
             else:
                 base_cost_per_unit = purchase_item.unit_cost
 
@@ -180,9 +194,35 @@ def receive_purchase(
 
             db.add(movement)
 
+            total_purchase_cost += purchase_item.total_cost
+
+        # -----------------------------------------------------
+        # Create the financial expense for this purchase
+        # -----------------------------------------------------
+        expense = Expense(
+            tenant_id=tenant_id,
+            branch_id=purchase.branch_id,
+            purchase_id=purchase.id,
+            category=ExpenseCategory.PURCHASE,
+            amount=total_purchase_cost,
+            expense_date=purchase.purchase_date,
+            description=(
+                f"Purchase {purchase.purchase_number}"
+            ),
+        )
+
+        db.add(expense)
+
+        # -----------------------------------------------------
+        # Mark purchase as received
+        # -----------------------------------------------------
         purchase.status = "RECEIVED"
 
         db.commit()
+
+    except HTTPException:
+        db.rollback()
+        raise
 
     except Exception:
         db.rollback()
