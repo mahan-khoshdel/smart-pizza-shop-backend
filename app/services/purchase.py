@@ -144,6 +144,25 @@ def get_purchase_detail(
             for item in items
         ],
     }
+    
+
+def get_supplier_performance(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """Return purchasing performance grouped by supplier."""
+
+    repository = PurchaseRepository(db)
+
+    return repository.get_supplier_performance(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 def receive_purchase(

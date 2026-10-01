@@ -11,12 +11,14 @@ from app.schemas.purchase import (
     PurchaseDetailResponse,
     PurchaseListResponse,
     PurchaseSummaryResponse,
+    SupplierPerformanceResponse,
 )
 from app.schemas.purchase_receive import PurchaseReceiveRequest
 from app.services.purchase import (
     create_purchase,
     get_purchase_detail,
     get_purchase_summary,
+    get_supplier_performance,
     list_purchases,
     receive_purchase,
 )
@@ -123,6 +125,30 @@ def purchase_summary_endpoint(
         start_date=start_date,
         end_date=end_date,
     )
+    
+    
+@router.get(
+    "/supplier-performance",
+    response_model=SupplierPerformanceResponse,
+)
+def supplier_performance_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """Return purchasing performance grouped by supplier."""
+
+    return {
+        "items": get_supplier_performance(
+            db=db,
+            tenant_id=current_user["tenant_id"],
+            branch_id=branch_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    }
 
 
 @router.get(

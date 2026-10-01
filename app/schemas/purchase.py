@@ -86,3 +86,20 @@ class PurchaseSummaryResponse(BaseModel):
     draft_purchase_count: int
     received_purchase_count: int
     cancelled_purchase_count: int
+    
+    
+class SupplierPerformanceItem(BaseModel):
+    """Represent purchasing performance for one supplier."""
+
+    supplier_id: UUID
+    supplier_name: str
+    purchase_count: int
+    total_purchase_cost: Decimal
+    average_purchase_cost: Decimal
+    last_purchase_date: datetime
+
+
+class SupplierPerformanceResponse(BaseModel):
+    """Represent supplier purchasing performance analytics."""
+
+    items: list[SupplierPerformanceItem]
