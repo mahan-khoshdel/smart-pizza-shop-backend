@@ -14,6 +14,7 @@ from app.database.models.inventory_movement import InventoryMovement
 from app.database.models.purchase import Purchase
 from app.database.models.purchase_item import PurchaseItem
 from app.repositories.branch import BranchRepository
+from app.repositories.purchase import PurchaseRepository
 from app.repositories.supplier import SupplierRepository
 from app.schemas.purchase import PurchaseItemCreate
 from app.schemas.purchase_receive import PurchaseReceiveItem
@@ -33,6 +34,87 @@ def get_purchase(
     )
 
     return db.scalar(statement)
+
+
+def list_purchases(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    purchase_status: str | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> tuple[list[Purchase], int]:
+    """Return purchases filtered within the current tenant."""
+
+    repository = PurchaseRepository(db)
+
+    return repository.list_purchases(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        status=purchase_status,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+def get_purchase_detail(
+    db: Session,
+    purchase_id: UUID,
+    tenant_id: UUID,
+) -> dict:
+    """Return a purchase with all of its items."""
+
+    repository = PurchaseRepository(db)
+
+    purchase = repository.get_by_id(
+        purchase_id=purchase_id,
+        tenant_id=tenant_id,
+    )
+
+    if purchase is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Purchase not found.",
+        )
+
+    items = repository.get_items(
+        purchase_id=purchase.id,
+    )
+
+    return {
+        "id": purchase.id,
+        "tenant_id": purchase.tenant_id,
+        "branch_id": purchase.branch_id,
+        "supplier_id": purchase.supplier_id,
+        "purchase_number": purchase.purchase_number,
+        "purchase_date": purchase.purchase_date,
+        "status": getattr(
+            purchase.status,
+            "value",
+            purchase.status,
+        ),
+        "note": purchase.note,
+        "created_at": purchase.created_at,
+        "updated_at": purchase.updated_at,
+        "items": [
+            {
+                "id": item.id,
+                "purchase_id": item.purchase_id,
+                "ingredient_id": item.ingredient_id,
+                "quantity": item.quantity,
+                "unit": getattr(
+                    item.unit,
+                    "value",
+                    item.unit,
+                ),
+                "unit_cost": item.unit_cost,
+                "total_cost": item.total_cost,
+            }
+            for item in items
+        ],
+    }
 
 
 def receive_purchase(
