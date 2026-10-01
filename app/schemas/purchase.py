@@ -72,3 +72,17 @@ class PurchaseDetailResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     items: list[PurchaseItemResponse]
+    
+    
+class PurchaseSummaryResponse(BaseModel):
+    """Represent aggregated purchase statistics."""
+
+    branch_id: UUID | None
+    supplier_id: UUID | None
+
+    total_purchase_count: int
+    total_purchase_cost: Decimal
+
+    draft_purchase_count: int
+    received_purchase_count: int
+    cancelled_purchase_count: int

@@ -10,11 +10,13 @@ from app.schemas.purchase import (
     PurchaseCreate,
     PurchaseDetailResponse,
     PurchaseListResponse,
+    PurchaseSummaryResponse,
 )
 from app.schemas.purchase_receive import PurchaseReceiveRequest
 from app.services.purchase import (
     create_purchase,
     get_purchase_detail,
+    get_purchase_summary,
     list_purchases,
     receive_purchase,
 )
@@ -95,6 +97,32 @@ def list_purchases_endpoint(
         ],
         "total_count": total_count,
     }
+    
+    
+@router.get(
+    "/summary",
+    response_model=PurchaseSummaryResponse,
+)
+def purchase_summary_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    supplier_id: UUID | None = Query(default=None),
+    purchase_status: str | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """Return aggregated purchase statistics."""
+
+    return get_purchase_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        purchase_status=purchase_status,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 @router.get(

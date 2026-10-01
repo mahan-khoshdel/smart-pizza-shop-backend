@@ -103,3 +103,102 @@ class PurchaseRepository:
         total_count = self.db.scalar(count_statement) or 0
 
         return purchases, total_count
+    
+    def get_summary(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        supplier_id: UUID | None = None,
+        status: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict:
+        """Return aggregated purchase statistics."""
+
+        filters = [
+            Purchase.tenant_id == tenant_id,
+        ]
+
+        if branch_id is not None:
+            filters.append(
+                Purchase.branch_id == branch_id,
+            )
+
+        if supplier_id is not None:
+            filters.append(
+                Purchase.supplier_id == supplier_id,
+            )
+
+        if status is not None:
+            filters.append(
+                Purchase.status == status,
+            )
+
+        if start_date is not None:
+            filters.append(
+                Purchase.purchase_date >= start_date,
+            )
+
+        if end_date is not None:
+            filters.append(
+                Purchase.purchase_date <= end_date,
+            )
+
+        summary_statement = (
+            select(
+                func.count(func.distinct(Purchase.id)),
+                func.coalesce(
+                    func.sum(PurchaseItem.total_cost),
+                    0,
+                ),
+            )
+            .select_from(Purchase)
+            .outerjoin(
+                PurchaseItem,
+                PurchaseItem.purchase_id == Purchase.id,
+            )
+            .where(*filters)
+        )
+
+        total_purchase_count, total_purchase_cost = (
+            self.db.execute(summary_statement).one()
+        )
+
+        status_statement = (
+            select(
+                Purchase.status,
+                func.count(Purchase.id),
+            )
+            .where(*filters)
+            .group_by(Purchase.status)
+        )
+
+        status_rows = self.db.execute(status_statement).all()
+
+        draft_purchase_count = 0
+        received_purchase_count = 0
+        cancelled_purchase_count = 0
+
+        for purchase_status, count in status_rows:
+            status_value = getattr(
+                purchase_status,
+                "value",
+                purchase_status,
+            )
+
+            if status_value == "DRAFT":
+                draft_purchase_count = count
+
+            elif status_value == "RECEIVED":
+                received_purchase_count = count
+
+            elif status_value == "CANCELLED":
+                cancelled_purchase_count = count
+
+        return {
+            "total_purchase_count": total_purchase_count,
+            "total_purchase_cost": total_purchase_cost,
+            "draft_purchase_count": draft_purchase_count,
+            "received_purchase_count": received_purchase_count,
+            "cancelled_purchase_count": cancelled_purchase_count,
+        }

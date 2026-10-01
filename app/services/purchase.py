@@ -57,6 +57,35 @@ def list_purchases(
         start_date=start_date,
         end_date=end_date,
     )
+    
+    
+def get_purchase_summary(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    purchase_status: str | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> dict:
+    """Return aggregated purchase statistics for the current tenant."""
+
+    repository = PurchaseRepository(db)
+
+    summary = repository.get_summary(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        status=purchase_status,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return {
+        "branch_id": branch_id,
+        "supplier_id": supplier_id,
+        **summary,
+    }
 
 
 def get_purchase_detail(
