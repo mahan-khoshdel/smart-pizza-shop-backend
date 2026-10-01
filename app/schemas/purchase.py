@@ -133,3 +133,23 @@ class SupplierPriceAnalysisResponse(BaseModel):
     """Represent supplier ingredient price analysis."""
 
     items: list[SupplierPriceAnalysisItem]
+    
+    
+class PurchaseIngredientCostItem(BaseModel):
+    """Represent purchase cost analytics for one ingredient."""
+
+    ingredient_id: UUID
+    ingredient_name: str
+    base_unit: str
+
+    purchase_count: int
+    total_quantity: Decimal
+    total_purchase_cost: Decimal
+    average_purchase_cost: Decimal
+    latest_purchase_cost: Decimal
+
+
+class PurchaseIngredientCostResponse(BaseModel):
+    """Represent purchase cost analytics grouped by ingredient."""
+
+    items: list[PurchaseIngredientCostItem]

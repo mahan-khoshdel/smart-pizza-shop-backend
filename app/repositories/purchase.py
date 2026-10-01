@@ -395,3 +395,91 @@ class PurchaseRepository:
             }
             for row in rows
         ]
+        
+    def get_cost_by_ingredient(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        supplier_id: UUID | None = None,
+        ingredient_id: UUID | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict]:
+        """Return received purchase lines for ingredient cost analysis."""
+
+        filters = [
+            Purchase.tenant_id == tenant_id,
+            Purchase.status == "RECEIVED",
+        ]
+
+        if branch_id is not None:
+            filters.append(
+                Purchase.branch_id == branch_id,
+            )
+
+        if supplier_id is not None:
+            filters.append(
+                Purchase.supplier_id == supplier_id,
+            )
+
+        if ingredient_id is not None:
+            filters.append(
+                PurchaseItem.ingredient_id == ingredient_id,
+            )
+
+        if start_date is not None:
+            filters.append(
+                Purchase.purchase_date >= start_date,
+            )
+
+        if end_date is not None:
+            filters.append(
+                Purchase.purchase_date <= end_date,
+            )
+
+        statement = (
+            select(
+                Purchase.id.label("purchase_id"),
+                Purchase.purchase_date.label("purchase_date"),
+                Ingredient.id.label("ingredient_id"),
+                Ingredient.name.label("ingredient_name"),
+                Ingredient.base_unit.label("base_unit"),
+                PurchaseItem.quantity.label("quantity"),
+                PurchaseItem.unit.label("unit"),
+                PurchaseItem.total_cost.label("total_cost"),
+            )
+            .select_from(Purchase)
+            .join(
+                PurchaseItem,
+                PurchaseItem.purchase_id == Purchase.id,
+            )
+            .join(
+                Ingredient,
+                Ingredient.id == PurchaseItem.ingredient_id,
+            )
+            .where(*filters)
+            .order_by(
+                Ingredient.name.asc(),
+                Purchase.purchase_date.asc(),
+            )
+        )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "purchase_id": row.purchase_id,
+                "purchase_date": row.purchase_date,
+                "ingredient_id": row.ingredient_id,
+                "ingredient_name": row.ingredient_name,
+                "base_unit": row.base_unit,
+                "quantity": row.quantity,
+                "unit": getattr(
+                    row.unit,
+                    "value",
+                    row.unit,
+                ),
+                "total_cost": row.total_cost,
+            }
+            for row in rows
+        ]

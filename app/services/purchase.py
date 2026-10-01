@@ -302,6 +302,112 @@ def get_supplier_price_analysis(
     return result
 
 
+def get_purchase_cost_by_ingredient(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    ingredient_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """Analyze received purchase costs grouped by ingredient."""
+
+    repository = PurchaseRepository(db)
+
+    rows = repository.get_cost_by_ingredient(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        ingredient_id=ingredient_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    grouped: dict[UUID, dict] = {}
+
+    for row in rows:
+        quantity = Decimal(row["quantity"])
+        unit = row["unit"]
+        base_unit = row["base_unit"]
+
+        base_quantity = convert_quantity(
+            quantity=quantity,
+            from_unit=unit,
+            to_unit=base_unit,
+        )
+
+        purchase_id = row["purchase_id"]
+        total_cost = Decimal(row["total_cost"])
+
+        ingredient_id_value = row["ingredient_id"]
+
+        if ingredient_id_value not in grouped:
+            grouped[ingredient_id_value] = {
+                "ingredient_id": ingredient_id_value,
+                "ingredient_name": row["ingredient_name"],
+                "base_unit": base_unit,
+                "purchase_ids": set(),
+                "total_quantity": Decimal("0"),
+                "total_purchase_cost": Decimal("0"),
+                "latest_purchase_date": row["purchase_date"],
+                "latest_purchase_cost": total_cost,
+            }
+
+        group = grouped[ingredient_id_value]
+
+        group["purchase_ids"].add(purchase_id)
+
+        group["total_quantity"] += base_quantity
+        group["total_purchase_cost"] += total_cost
+
+        if row["purchase_date"] >= group["latest_purchase_date"]:
+            group["latest_purchase_date"] = row["purchase_date"]
+            group["latest_purchase_cost"] = total_cost
+
+    result = []
+
+    for group in grouped.values():
+        purchase_count = len(group["purchase_ids"])
+        total_purchase_cost = group["total_purchase_cost"]
+
+        average_purchase_cost = (
+            total_purchase_cost / purchase_count
+            if purchase_count > 0
+            else Decimal("0")
+        )
+
+        result.append(
+            {
+                "ingredient_id": group["ingredient_id"],
+                "ingredient_name": group["ingredient_name"],
+                "base_unit": group["base_unit"],
+                "purchase_count": purchase_count,
+                "total_quantity": group["total_quantity"].quantize(
+                    Decimal("0.001")
+                ),
+                "total_purchase_cost": total_purchase_cost.quantize(
+                    Decimal("0.01")
+                ),
+                "average_purchase_cost": average_purchase_cost.quantize(
+                    Decimal("0.01")
+                ),
+                "latest_purchase_cost": (
+                    group["latest_purchase_cost"].quantize(
+                        Decimal("0.01")
+                    )
+                ),
+            }
+        )
+
+    result.sort(
+        key=lambda item: item["total_purchase_cost"],
+        reverse=True,
+    )
+
+    return result
+
+
 def receive_purchase(
     db: Session,
     purchase_id: UUID,

@@ -9,6 +9,7 @@ from app.core.dependencies import get_db
 from app.schemas.purchase import (
     PurchaseCreate,
     PurchaseDetailResponse,
+    PurchaseIngredientCostResponse,
     PurchaseListResponse,
     PurchaseSummaryResponse,
     SupplierPerformanceResponse,
@@ -18,6 +19,7 @@ from app.schemas.purchase_receive import PurchaseReceiveRequest
 from app.services.purchase import (
     create_purchase,
     get_purchase_detail,
+    get_purchase_cost_by_ingredient,
     get_purchase_summary,
     get_supplier_performance,
     get_supplier_price_analysis,
@@ -170,6 +172,34 @@ def supplier_price_analysis_endpoint(
 
     return {
         "items": get_supplier_price_analysis(
+            db=db,
+            tenant_id=current_user["tenant_id"],
+            branch_id=branch_id,
+            supplier_id=supplier_id,
+            ingredient_id=ingredient_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    }
+    
+    
+@router.get(
+    "/cost-by-ingredient",
+    response_model=PurchaseIngredientCostResponse,
+)
+def purchase_cost_by_ingredient_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    supplier_id: UUID | None = Query(default=None),
+    ingredient_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """Return purchase cost analytics grouped by ingredient."""
+
+    return {
+        "items": get_purchase_cost_by_ingredient(
             db=db,
             tenant_id=current_user["tenant_id"],
             branch_id=branch_id,
