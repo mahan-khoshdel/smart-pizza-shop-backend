@@ -149,3 +149,15 @@ class OrderSalesTrendResponse(BaseModel):
     completed_order_count: int
     total_sales: Decimal
     average_order_value: Decimal
+    
+    
+class OrderProductSalesPerformanceResponse(BaseModel):
+    """
+    Sales performance for a product variant.
+    """
+
+    product_variant_id: UUID
+    sku: str
+    sold_quantity: int
+    order_count: int
+    total_sales: Decimal

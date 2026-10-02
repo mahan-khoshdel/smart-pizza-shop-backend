@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database.models.order import Order, OrderItem
+from app.database.models.product_variant import ProductVariant
 
 
 class OrderRepository:
@@ -431,6 +432,90 @@ class OrderRepository:
                 "average_order_value": (
                     row.average_order_value or 0
                 ),
+            }
+            for row in rows
+        ]
+        
+    def get_product_sales_performance(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        start_date=None,
+        end_date=None,
+    ) -> list[dict]:
+        """
+        Return sales performance for each product variant.
+
+        Only completed orders are included in the analysis.
+        """
+
+        statement = (
+            select(
+                ProductVariant.id.label("product_variant_id"),
+                ProductVariant.sku.label("sku"),
+                func.coalesce(
+                    func.sum(OrderItem.quantity),
+                    0,
+                ).label("sold_quantity"),
+                func.count(
+                    func.distinct(Order.id)
+                ).label("order_count"),
+                func.coalesce(
+                    func.sum(OrderItem.total_price),
+                    0,
+                ).label("total_sales"),
+            )
+            .join(
+                ProductVariant,
+                ProductVariant.id == OrderItem.product_variant_id,
+            )
+            .join(
+                Order,
+                Order.id == OrderItem.order_id,
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.status == "COMPLETED",
+                ProductVariant.tenant_id == tenant_id,
+            )
+            .group_by(
+                ProductVariant.id,
+                ProductVariant.sku,
+            )
+            .order_by(
+                func.sum(OrderItem.total_price).desc(),
+                ProductVariant.id.asc(),
+            )
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        if start_date is not None:
+            statement = statement.where(
+                Order.created_at >= start_date,
+            )
+
+        if end_date is not None:
+            statement = statement.where(
+                Order.created_at <= end_date,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "product_variant_id": row.product_variant_id,
+                "sku": row.sku,
+                "sold_quantity": int(
+                    row.sold_quantity or 0
+                ),
+                "order_count": int(
+                    row.order_count or 0
+                ),
+                "total_sales": row.total_sales or 0,
             }
             for row in rows
         ]

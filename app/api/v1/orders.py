@@ -19,6 +19,7 @@ from app.schemas.order import (
     KitchenWorkloadResponse,
     OrderCreate,
     OrderIngredientRequirementsResponse,
+    OrderProductSalesPerformanceResponse,
     OrderResponse,
     OrderSalesSummaryResponse,
     OrderSalesTrendResponse,
@@ -41,6 +42,7 @@ from app.services.order import (
     get_order_sales_summary,
     get_order_sales_trends,
     get_order_status_history,
+    get_product_sales_performance,
     update_order_status,
 )
 
@@ -352,6 +354,30 @@ def order_sales_trends_endpoint(
     """
 
     return get_order_sales_trends(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    
+@router.get(
+    "/product-sales-performance",
+    response_model=list[OrderProductSalesPerformanceResponse],
+)
+def product_sales_performance_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return sales performance for each product variant.
+    """
+
+    return get_product_sales_performance(
         db=db,
         tenant_id=current_user["tenant_id"],
         branch_id=branch_id,
