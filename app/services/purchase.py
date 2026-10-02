@@ -408,6 +408,27 @@ def get_purchase_cost_by_ingredient(
     return result
 
 
+def get_purchase_trends(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """Return purchase trends over time."""
+
+    repository = PurchaseRepository(db)
+
+    return repository.get_purchase_trends(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
 def receive_purchase(
     db: Session,
     purchase_id: UUID,

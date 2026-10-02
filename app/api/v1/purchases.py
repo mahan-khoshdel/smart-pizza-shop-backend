@@ -12,15 +12,17 @@ from app.schemas.purchase import (
     PurchaseIngredientCostResponse,
     PurchaseListResponse,
     PurchaseSummaryResponse,
+    PurchaseTrendResponse,
     SupplierPerformanceResponse,
     SupplierPriceAnalysisResponse,
 )
 from app.schemas.purchase_receive import PurchaseReceiveRequest
 from app.services.purchase import (
     create_purchase,
-    get_purchase_detail,
     get_purchase_cost_by_ingredient,
+    get_purchase_detail,
     get_purchase_summary,
+    get_purchase_trends,
     get_supplier_performance,
     get_supplier_price_analysis,
     list_purchases,
@@ -205,6 +207,32 @@ def purchase_cost_by_ingredient_endpoint(
             branch_id=branch_id,
             supplier_id=supplier_id,
             ingredient_id=ingredient_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    }
+    
+    
+@router.get(
+    "/trends",
+    response_model=PurchaseTrendResponse,
+)
+def purchase_trends_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    supplier_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """Return purchase trends over time."""
+
+    return {
+        "items": get_purchase_trends(
+            db=db,
+            tenant_id=current_user["tenant_id"],
+            branch_id=branch_id,
+            supplier_id=supplier_id,
             start_date=start_date,
             end_date=end_date,
         )

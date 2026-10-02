@@ -153,3 +153,17 @@ class PurchaseIngredientCostResponse(BaseModel):
     """Represent purchase cost analytics grouped by ingredient."""
 
     items: list[PurchaseIngredientCostItem]
+    
+    
+class PurchaseTrendItem(BaseModel):
+    """Represent purchase activity for one date."""
+
+    date: datetime
+    purchase_count: int
+    total_purchase_cost: Decimal
+
+
+class PurchaseTrendResponse(BaseModel):
+    """Represent purchase trends over time."""
+
+    items: list[PurchaseTrendItem]

@@ -483,3 +483,77 @@ class PurchaseRepository:
             }
             for row in rows
         ]
+        
+        
+    def get_purchase_trends(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        supplier_id: UUID | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict]:
+        """Return received purchase totals grouped by purchase date."""
+
+        filters = [
+            Purchase.tenant_id == tenant_id,
+            Purchase.status == "RECEIVED",
+        ]
+
+        if branch_id is not None:
+            filters.append(
+                Purchase.branch_id == branch_id,
+            )
+
+        if supplier_id is not None:
+            filters.append(
+                Purchase.supplier_id == supplier_id,
+            )
+
+        if start_date is not None:
+            filters.append(
+                Purchase.purchase_date >= start_date,
+            )
+
+        if end_date is not None:
+            filters.append(
+                Purchase.purchase_date <= end_date,
+            )
+
+        purchase_date = func.date(Purchase.purchase_date)
+
+        statement = (
+            select(
+                purchase_date.label("date"),
+                func.count(
+                    func.distinct(Purchase.id),
+                ).label("purchase_count"),
+                func.coalesce(
+                    func.sum(PurchaseItem.total_cost),
+                    0,
+                ).label("total_purchase_cost"),
+            )
+            .select_from(Purchase)
+            .join(
+                PurchaseItem,
+                PurchaseItem.purchase_id == Purchase.id,
+            )
+            .where(*filters)
+            .group_by(
+                purchase_date,
+            )
+            .order_by(
+                purchase_date.asc(),
+            )
+        )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "date": row.date,
+                "purchase_count": int(row.purchase_count),
+                "total_purchase_cost": row.total_purchase_cost,
+            }
+            for row in rows
+        ]
