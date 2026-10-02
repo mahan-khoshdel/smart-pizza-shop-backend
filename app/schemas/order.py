@@ -125,3 +125,16 @@ class KitchenPerformanceResponse(BaseModel):
 
     fastest_preparation_seconds: float | None
     slowest_preparation_seconds: float | None
+    
+    
+class OrderSalesSummaryResponse(BaseModel):
+    """
+    Sales summary for a tenant or branch.
+    """
+
+    branch_id: UUID | None
+    total_order_count: int
+    completed_order_count: int
+    cancelled_order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal

@@ -298,3 +298,70 @@ class OrderRepository:
                 durations.append(duration)
 
         return durations
+    
+    def get_sales_summary(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        start_date=None,
+        end_date=None,
+    ) -> dict:
+        """
+        Return sales summary for the current tenant.
+
+        Total sales and average order value are calculated only
+        from completed orders.
+        """
+
+        statement = select(
+            func.count(Order.id).label("total_order_count"),
+            func.count(Order.id)
+            .filter(Order.status == "COMPLETED")
+            .label("completed_order_count"),
+            func.count(Order.id)
+            .filter(Order.status == "CANCELLED")
+            .label("cancelled_order_count"),
+            func.coalesce(
+                func.sum(Order.total)
+                .filter(Order.status == "COMPLETED"),
+                0,
+            ).label("total_sales"),
+            func.coalesce(
+                func.avg(Order.total)
+                .filter(Order.status == "COMPLETED"),
+                0,
+            ).label("average_order_value"),
+        ).where(
+            Order.tenant_id == tenant_id,
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        if start_date is not None:
+            statement = statement.where(
+                Order.created_at >= start_date,
+            )
+
+        if end_date is not None:
+            statement = statement.where(
+                Order.created_at <= end_date,
+            )
+
+        result = self.db.execute(statement).one()
+
+        return {
+            "total_order_count": int(
+                result.total_order_count or 0
+            ),
+            "completed_order_count": int(
+                result.completed_order_count or 0
+            ),
+            "cancelled_order_count": int(
+                result.cancelled_order_count or 0
+            ),
+            "total_sales": result.total_sales or 0,
+            "average_order_value": result.average_order_value or 0,
+        }

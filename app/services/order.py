@@ -1764,3 +1764,35 @@ def get_kitchen_performance_summary(
         "expected_preparation_minutes": expected_minutes,
         "overdue_order_count": overdue_order_count,
     }
+    
+    
+def get_order_sales_summary(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> dict:
+    """
+    Return sales summary for the current tenant.
+
+    Sales are calculated only from completed orders.
+    """
+
+    repository = OrderRepository(db)
+
+    summary = repository.get_sales_summary(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return {
+        "branch_id": branch_id,
+        "total_order_count": summary["total_order_count"],
+        "completed_order_count": summary["completed_order_count"],
+        "cancelled_order_count": summary["cancelled_order_count"],
+        "total_sales": summary["total_sales"],
+        "average_order_value": summary["average_order_value"],
+    }
