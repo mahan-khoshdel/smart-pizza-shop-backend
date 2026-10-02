@@ -167,3 +167,13 @@ class PurchaseTrendResponse(BaseModel):
     """Represent purchase trends over time."""
 
     items: list[PurchaseTrendItem]
+    
+    
+class PurchaseDashboardSummaryResponse(BaseModel):
+    """Represent the complete purchase dashboard."""
+
+    summary: PurchaseSummaryResponse
+    supplier_performance: list[SupplierPerformanceItem]
+    supplier_price_analysis: list[SupplierPriceAnalysisItem]
+    cost_by_ingredient: list[PurchaseIngredientCostItem]
+    trends: list[PurchaseTrendItem]

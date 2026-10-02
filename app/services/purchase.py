@@ -692,3 +692,69 @@ def create_purchase(
     except Exception:
         db.rollback()
         raise
+    
+    
+def get_purchase_dashboard_summary(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    ingredient_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> dict:
+    """Return all purchase analytics required by the dashboard."""
+
+    summary = get_purchase_summary(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    supplier_performance = get_supplier_performance(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    supplier_price_analysis = get_supplier_price_analysis(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        ingredient_id=ingredient_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    cost_by_ingredient = get_purchase_cost_by_ingredient(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        ingredient_id=ingredient_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    trends = get_purchase_trends(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        supplier_id=supplier_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return {
+        "summary": summary,
+        "supplier_performance": supplier_performance,
+        "supplier_price_analysis": supplier_price_analysis,
+        "cost_by_ingredient": cost_by_ingredient,
+        "trends": trends,
+    }
