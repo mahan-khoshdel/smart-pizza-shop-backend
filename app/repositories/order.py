@@ -365,3 +365,72 @@ class OrderRepository:
             "total_sales": result.total_sales or 0,
             "average_order_value": result.average_order_value or 0,
         }
+        
+    def get_sales_trends(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        start_date=None,
+        end_date=None,
+    ) -> list[dict]:
+        """
+        Return daily sales trends for the current tenant.
+
+        Only completed orders are included in sales calculations.
+        """
+
+        trend_date = func.date(Order.created_at).label("date")
+
+        statement = (
+            select(
+                trend_date,
+                func.count(Order.id).label(
+                    "completed_order_count"
+                ),
+                func.coalesce(
+                    func.sum(Order.total),
+                    0,
+                ).label("total_sales"),
+                func.coalesce(
+                    func.avg(Order.total),
+                    0,
+                ).label("average_order_value"),
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.status == "COMPLETED",
+            )
+            .group_by(trend_date)
+            .order_by(trend_date.asc())
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        if start_date is not None:
+            statement = statement.where(
+                Order.created_at >= start_date,
+            )
+
+        if end_date is not None:
+            statement = statement.where(
+                Order.created_at <= end_date,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "date": row.date,
+                "completed_order_count": int(
+                    row.completed_order_count or 0
+                ),
+                "total_sales": row.total_sales or 0,
+                "average_order_value": (
+                    row.average_order_value or 0
+                ),
+            }
+            for row in rows
+        ]

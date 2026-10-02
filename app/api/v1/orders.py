@@ -21,6 +21,7 @@ from app.schemas.order import (
     OrderIngredientRequirementsResponse,
     OrderResponse,
     OrderSalesSummaryResponse,
+    OrderSalesTrendResponse,
     OrderStatusHistoryResponse,
     OrderStatusUpdate,
 )
@@ -38,6 +39,7 @@ from app.services.order import (
     get_orders,
     get_order_ingredient_requirements,
     get_order_sales_summary,
+    get_order_sales_trends,
     get_order_status_history,
     update_order_status,
 )
@@ -326,6 +328,30 @@ def order_sales_summary_endpoint(
     """
 
     return get_order_sales_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    
+@router.get(
+    "/sales-trends",
+    response_model=list[OrderSalesTrendResponse],
+)
+def order_sales_trends_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return daily sales trends for the current tenant.
+    """
+
+    return get_order_sales_trends(
         db=db,
         tenant_id=current_user["tenant_id"],
         branch_id=branch_id,

@@ -1796,3 +1796,28 @@ def get_order_sales_summary(
         "total_sales": summary["total_sales"],
         "average_order_value": summary["average_order_value"],
     }
+    
+    
+def get_order_sales_trends(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """
+    Return daily sales trends for the current tenant.
+
+    Only completed orders are included.
+    """
+
+    repository = OrderRepository(db)
+
+    trends = repository.get_sales_trends(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return trends

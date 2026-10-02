@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from datetime import date
 from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
@@ -136,5 +137,15 @@ class OrderSalesSummaryResponse(BaseModel):
     total_order_count: int
     completed_order_count: int
     cancelled_order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal
+    
+class OrderSalesTrendResponse(BaseModel):
+    """
+    Daily sales trend for a tenant or branch.
+    """
+
+    date: date
+    completed_order_count: int
     total_sales: Decimal
     average_order_value: Decimal
