@@ -590,3 +590,73 @@ class OrderRepository:
             }
             for row in rows
         ]
+           
+    def get_order_type_performance(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        start_date=None,
+        end_date=None,
+    ) -> list[dict]:
+        """
+        Return sales performance grouped by order type.
+
+        Only completed orders are included.
+        """
+
+        statement = (
+            select(
+                Order.order_type.label("order_type"),
+                func.count(Order.id).label("order_count"),
+                func.coalesce(
+                    func.sum(Order.total),
+                    0,
+                ).label("total_sales"),
+                func.coalesce(
+                    func.avg(Order.total),
+                    0,
+                ).label("average_order_value"),
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.status == "COMPLETED",
+            )
+            .group_by(
+                Order.order_type,
+            )
+            .order_by(
+                func.sum(Order.total).desc(),
+                Order.order_type.asc(),
+            )
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        if start_date is not None:
+            statement = statement.where(
+                Order.created_at >= start_date,
+            )
+
+        if end_date is not None:
+            statement = statement.where(
+                Order.created_at <= end_date,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "order_type": row.order_type,
+                "order_count": int(
+                    row.order_count or 0
+                ),
+                "total_sales": row.total_sales or 0,
+                "average_order_value": (
+                    row.average_order_value or 0
+                ),
+            }
+            for row in rows
+        ]

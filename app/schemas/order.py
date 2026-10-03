@@ -172,3 +172,14 @@ class OrderCustomerSalesPerformanceResponse(BaseModel):
     order_count: int
     total_sales: Decimal
     average_order_value: Decimal
+    
+    
+class OrderTypePerformanceResponse(BaseModel):
+    """
+    Sales performance grouped by order type.
+    """
+
+    order_type: OrderType
+    order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal
