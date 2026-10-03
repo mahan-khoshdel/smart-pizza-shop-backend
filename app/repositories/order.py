@@ -660,3 +660,79 @@ class OrderRepository:
             }
             for row in rows
         ]
+        
+    def get_sales_by_hour(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        start_date=None,
+        end_date=None,
+    ) -> list[dict]:
+        """
+        Return completed sales grouped by order creation hour.
+
+        Only completed orders are included.
+        """
+
+        hour_expression = func.extract(
+            "hour",
+            Order.created_at,
+        ).label("hour")
+
+        statement = (
+            select(
+                hour_expression,
+                func.count(Order.id).label(
+                    "completed_order_count"
+                ),
+                func.coalesce(
+                    func.sum(Order.total),
+                    0,
+                ).label("total_sales"),
+                func.coalesce(
+                    func.avg(Order.total),
+                    0,
+                ).label("average_order_value"),
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.status == "COMPLETED",
+            )
+            .group_by(
+                hour_expression,
+            )
+            .order_by(
+                hour_expression.asc(),
+            )
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        if start_date is not None:
+            statement = statement.where(
+                Order.created_at >= start_date,
+            )
+
+        if end_date is not None:
+            statement = statement.where(
+                Order.created_at <= end_date,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "hour": int(row.hour or 0),
+                "completed_order_count": int(
+                    row.completed_order_count or 0
+                ),
+                "total_sales": row.total_sales or 0,
+                "average_order_value": (
+                    row.average_order_value or 0
+                ),
+            }
+            for row in rows
+        ]

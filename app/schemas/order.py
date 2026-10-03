@@ -183,3 +183,14 @@ class OrderTypePerformanceResponse(BaseModel):
     order_count: int
     total_sales: Decimal
     average_order_value: Decimal
+    
+    
+class SalesByHourResponse(BaseModel):
+    """
+    Completed sales performance grouped by hour.
+    """
+
+    hour: int
+    completed_order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal

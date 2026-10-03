@@ -1890,3 +1890,24 @@ def get_order_type_performance(
         start_date=start_date,
         end_date=end_date,
     )
+    
+    
+def get_sales_by_hour(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """
+    Return completed sales grouped by order creation hour.
+    """
+
+    repository = OrderRepository(db)
+
+    return repository.get_sales_by_hour(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )

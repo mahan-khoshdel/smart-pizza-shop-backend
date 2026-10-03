@@ -27,6 +27,7 @@ from app.schemas.order import (
     OrderStatusHistoryResponse,
     OrderStatusUpdate,
     OrderTypePerformanceResponse,
+    SalesByHourResponse,
 )
 from app.services.order import (
     cancel_order,
@@ -45,8 +46,9 @@ from app.services.order import (
     get_order_sales_summary,
     get_order_sales_trends,
     get_order_status_history,
-    get_product_sales_performance,
     get_order_type_performance,
+    get_product_sales_performance,
+    get_sales_by_hour,
     update_order_status,
 )
 
@@ -430,6 +432,30 @@ def order_type_performance_endpoint(
     """
 
     return get_order_type_performance(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    
+@router.get(
+    "/sales-by-hour",
+    response_model=list[SalesByHourResponse],
+)
+def sales_by_hour_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return completed sales performance grouped by hour.
+    """
+
+    return get_sales_by_hour(
         db=db,
         tenant_id=current_user["tenant_id"],
         branch_id=branch_id,
