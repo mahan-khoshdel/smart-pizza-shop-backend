@@ -2219,3 +2219,140 @@ def get_business_dashboard_summary(
             ),
         },
     }
+    
+    
+def get_business_risk_metrics(
+    db: Session,
+    tenant_id: UUID,
+    target_date: date,
+    branch_id: UUID,
+) -> dict:
+    """
+    Return deterministic operational risk metrics.
+
+    The current implementation covers:
+    - order cancellation pressure
+    - open-order pressure
+    - kitchen capacity utilization
+
+    Inventory risks will be added after the Inventory analytics
+    layer is finalized.
+    """
+
+    start_at = datetime.combine(
+        target_date,
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+    end_at = start_at + timedelta(days=1)
+
+    repository = OrderRepository(db)
+
+    order_metrics = repository.get_business_risk_metrics(
+        tenant_id=tenant_id,
+        start_at=start_at,
+        end_at=end_at,
+        branch_id=branch_id,
+    )
+
+    kitchen = get_kitchen_workload(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    total_orders = order_metrics[
+        "total_order_count"
+    ]
+
+    cancelled_orders = order_metrics[
+        "cancelled_order_count"
+    ]
+
+    cancellation_rate_percent = (
+        round(
+            (
+                cancelled_orders
+                / total_orders
+            )
+            * 100,
+            2,
+        )
+        if total_orders > 0
+        else 0.0
+    )
+
+    kitchen_capacity = kitchen[
+        "kitchen_capacity"
+    ]
+
+    preparing_count = kitchen[
+        "preparing_count"
+    ]
+
+    capacity_utilization_percent = (
+        round(
+            (
+                preparing_count
+                / kitchen_capacity
+            )
+            * 100,
+            2,
+        )
+        if kitchen_capacity > 0
+        else 0.0
+    )
+
+    return {
+        "date": target_date,
+        "branch_id": branch_id,
+
+        "total_order_count": (
+            order_metrics[
+                "total_order_count"
+            ]
+        ),
+        "completed_order_count": (
+            order_metrics[
+                "completed_order_count"
+            ]
+        ),
+        "cancelled_order_count": (
+            order_metrics[
+                "cancelled_order_count"
+            ]
+        ),
+        "open_order_count": (
+            order_metrics[
+                "open_order_count"
+            ]
+        ),
+
+        "cancellation_rate_percent": (
+            cancellation_rate_percent
+        ),
+
+        "preparing_count": (
+            kitchen["preparing_count"]
+        ),
+        "ready_count": (
+            kitchen["ready_count"]
+        ),
+        "active_count": (
+            kitchen["active_count"]
+        ),
+
+        "kitchen_capacity": (
+            kitchen["kitchen_capacity"]
+        ),
+        "capacity_available": (
+            kitchen["capacity_available"]
+        ),
+        "capacity_utilization_percent": (
+            capacity_utilization_percent
+        ),
+        "is_at_capacity": (
+            kitchen["is_at_capacity"]
+        ),
+    }

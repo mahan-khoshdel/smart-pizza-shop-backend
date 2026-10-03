@@ -16,6 +16,7 @@ from app.schemas.kitchen import (
 )
 from app.schemas.order import (
     BusinessDashboardSummaryResponse,
+    BusinessRiskMetricsResponse,
     BusyHoursAnalysisResponse,
     DailyBusinessSummaryResponse,
     KitchenPerformanceResponse,
@@ -39,6 +40,7 @@ from app.services.order import (
     consume_order_inventory,
     create_order,
     get_business_dashboard_summary,
+    get_business_risk_metrics,
     get_busy_hours,
     get_customer_sales_performance,
     get_daily_business_summary,
@@ -598,6 +600,30 @@ def business_dashboard_summary_endpoint(
     """
 
     return get_business_dashboard_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        target_date=target_date,
+        branch_id=branch_id,
+    )
+    
+    
+@router.get(
+    "/business-risk-metrics",
+    response_model=BusinessRiskMetricsResponse,
+)
+def business_risk_metrics_endpoint(
+    target_date: date = Query(...),
+    branch_id: UUID = Query(...),
+    current_user: dict[str, UUID] = Depends(
+        get_current_user_data
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return operational risk metrics for a branch and day.
+    """
+
+    return get_business_risk_metrics(
         db=db,
         tenant_id=current_user["tenant_id"],
         target_date=target_date,

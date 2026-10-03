@@ -296,3 +296,28 @@ class BusinessDashboardSummaryResponse(BaseModel):
     top_sales_hour_total_sales: Decimal
 
     kitchen: DashboardKitchenSummaryResponse
+    
+    
+class BusinessRiskMetricsResponse(BaseModel):
+    """
+    Operational risk metrics for a specific branch and day.
+    """
+
+    date: date
+    branch_id: UUID
+
+    total_order_count: int
+    completed_order_count: int
+    cancelled_order_count: int
+    open_order_count: int
+
+    cancellation_rate_percent: float
+
+    preparing_count: int
+    ready_count: int
+    active_count: int
+
+    kitchen_capacity: int
+    capacity_available: int
+    capacity_utilization_percent: float
+    is_at_capacity: bool

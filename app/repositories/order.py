@@ -1012,3 +1012,75 @@ class OrderRepository:
                 row.average_order_value or 0
             ),
         }
+           
+    def get_business_risk_metrics(
+        self,
+        tenant_id: UUID,
+        start_at,
+        end_at,
+        branch_id: UUID | None = None,
+    ) -> dict:
+        """
+        Return operational risk metrics for a specific time range.
+
+        Order metrics are calculated from orders created in the
+        requested period.
+        """
+
+        cancelled_count = func.count(Order.id).filter(
+            Order.status == "CANCELLED"
+        )
+
+        completed_count = func.count(Order.id).filter(
+            Order.status == "COMPLETED"
+        )
+
+        open_count = func.count(Order.id).filter(
+            ~Order.status.in_(
+                {
+                    "COMPLETED",
+                    "CANCELLED",
+                }
+            )
+        )
+
+        statement = select(
+            func.count(Order.id).label(
+                "total_order_count"
+            ),
+            completed_count.label(
+                "completed_order_count"
+            ),
+            cancelled_count.label(
+                "cancelled_order_count"
+            ),
+            open_count.label(
+                "open_order_count"
+            ),
+        ).where(
+            Order.tenant_id == tenant_id,
+            Order.created_at >= start_at,
+            Order.created_at < end_at,
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        row = self.db.execute(statement).one()
+
+        return {
+            "total_order_count": int(
+                row.total_order_count or 0
+            ),
+            "completed_order_count": int(
+                row.completed_order_count or 0
+            ),
+            "cancelled_order_count": int(
+                row.cancelled_order_count or 0
+            ),
+            "open_order_count": int(
+                row.open_order_count or 0
+            ),
+        }
