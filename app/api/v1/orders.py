@@ -28,6 +28,7 @@ from app.schemas.order import (
     OrderStatusUpdate,
     OrderTypePerformanceResponse,
     SalesByHourResponse,
+    SalesByWeekdayResponse,
 )
 from app.services.order import (
     cancel_order,
@@ -49,6 +50,7 @@ from app.services.order import (
     get_order_type_performance,
     get_product_sales_performance,
     get_sales_by_hour,
+    get_sales_by_weekday,
     update_order_status,
 )
 
@@ -456,6 +458,30 @@ def sales_by_hour_endpoint(
     """
 
     return get_sales_by_hour(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    
+@router.get(
+    "/sales-by-weekday",
+    response_model=list[SalesByWeekdayResponse],
+)
+def sales_by_weekday_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return completed sales performance grouped by weekday.
+    """
+
+    return get_sales_by_weekday(
         db=db,
         tenant_id=current_user["tenant_id"],
         branch_id=branch_id,

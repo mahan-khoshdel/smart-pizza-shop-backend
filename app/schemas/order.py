@@ -194,3 +194,14 @@ class SalesByHourResponse(BaseModel):
     completed_order_count: int
     total_sales: Decimal
     average_order_value: Decimal
+    
+    
+class SalesByWeekdayResponse(BaseModel):
+    """
+    Completed sales performance grouped by weekday.
+    """
+
+    weekday: int
+    completed_order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal
