@@ -15,6 +15,7 @@ from app.schemas.kitchen import (
     KitchenPerformanceSummaryResponse,
 )
 from app.schemas.order import (
+    BusyHoursAnalysisResponse,
     KitchenPerformanceResponse,
     KitchenWorkloadResponse,
     OrderCreate,
@@ -34,6 +35,7 @@ from app.services.order import (
     cancel_order,
     consume_order_inventory,
     create_order,
+    get_busy_hours,
     get_customer_sales_performance,
     get_kitchen_orders,
     get_kitchen_performance,
@@ -489,6 +491,38 @@ def sales_by_weekday_endpoint(
         end_date=end_date,
     )
 
+
+@router.get(
+    "/busy-hours",
+    response_model=BusyHoursAnalysisResponse,
+)
+def busy_hours_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    limit: int = Query(
+        default=3,
+        ge=1,
+        le=24,
+    ),
+    current_user: dict[str, UUID] = Depends(
+        get_current_user_data
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return busy-hour and top-sales-hour analysis.
+    """
+
+    return get_busy_hours(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+    )
+    
 
 @router.get(
     "/{order_id}",

@@ -1932,3 +1932,84 @@ def get_sales_by_weekday(
         start_date=start_date,
         end_date=end_date,
     )
+    
+    
+def get_busy_hours(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    limit: int = 3,
+) -> dict:
+    """
+    Analyze completed sales by hour.
+
+    Busiest hours are determined by completed order count.
+    Top sales hours are determined by total sales.
+    """
+
+    repository = OrderRepository(db)
+
+    hourly_rows = repository.get_sales_by_hour(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    total_completed_order_count = sum(
+        row["completed_order_count"]
+        for row in hourly_rows
+    )
+
+    total_sales = sum(
+        (
+            row["total_sales"]
+            for row in hourly_rows
+        ),
+        Decimal("0"),
+    )
+
+    active_hour_count = len(hourly_rows)
+
+    average_orders_per_active_hour = (
+        round(
+            total_completed_order_count
+            / active_hour_count,
+            2,
+        )
+        if active_hour_count > 0
+        else 0.0
+    )
+
+    busiest_hours = sorted(
+        hourly_rows,
+        key=lambda row: (
+            -row["completed_order_count"],
+            -row["total_sales"],
+            row["hour"],
+        ),
+    )[:limit]
+
+    top_sales_hours = sorted(
+        hourly_rows,
+        key=lambda row: (
+            -row["total_sales"],
+            -row["completed_order_count"],
+            row["hour"],
+        ),
+    )[:limit]
+
+    return {
+        "total_completed_order_count": (
+            total_completed_order_count
+        ),
+        "total_sales": total_sales,
+        "active_hour_count": active_hour_count,
+        "average_orders_per_active_hour": (
+            average_orders_per_active_hour
+        ),
+        "busiest_hours": busiest_hours,
+        "top_sales_hours": top_sales_hours,
+    }

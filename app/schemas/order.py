@@ -205,3 +205,27 @@ class SalesByWeekdayResponse(BaseModel):
     completed_order_count: int
     total_sales: Decimal
     average_order_value: Decimal
+    
+    
+class BusyHourResponse(BaseModel):
+    """
+    Sales performance for a single busy hour.
+    """
+
+    hour: int
+    completed_order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal
+
+
+class BusyHoursAnalysisResponse(BaseModel):
+    """
+    Summary of busy hours and top sales hours.
+    """
+
+    total_completed_order_count: int
+    total_sales: Decimal
+    active_hour_count: int
+    average_orders_per_active_hour: float
+    busiest_hours: list[BusyHourResponse]
+    top_sales_hours: list[BusyHourResponse]
