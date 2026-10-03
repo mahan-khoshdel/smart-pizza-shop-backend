@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.database.models.order import Order, OrderItem
@@ -903,3 +903,112 @@ class OrderRepository:
             }
             for row in rows
         ]
+        
+    def get_daily_business_summary(
+        self,
+        tenant_id: UUID,
+        start_at,
+        end_at,
+        branch_id: UUID | None = None,
+    ) -> dict:
+        """
+        Return the main business KPIs for a specific day.
+
+        Orders are filtered by creation timestamp.
+
+        The summary includes:
+        - total order count
+        - completed order count
+        - cancelled order count
+        - total sales from completed orders
+        - average order value from completed orders
+        """
+
+        completed_total = case(
+            (
+                Order.status == "COMPLETED",
+                Order.total,
+            ),
+            else_=0,
+        )
+
+        completed_count = case(
+            (
+                Order.status == "COMPLETED",
+                1,
+            ),
+            else_=0,
+        )
+
+        cancelled_count = case(
+            (
+                Order.status == "CANCELLED",
+                1,
+            ),
+            else_=0,
+        )
+
+        statement = select(
+            func.count(Order.id).label(
+                "total_order_count"
+            ),
+            func.coalesce(
+                func.sum(completed_count),
+                0,
+            ).label(
+                "completed_order_count"
+            ),
+            func.coalesce(
+                func.sum(cancelled_count),
+                0,
+            ).label(
+                "cancelled_order_count"
+            ),
+            func.coalesce(
+                func.sum(completed_total),
+                0,
+            ).label(
+                "total_sales"
+            ),
+            func.coalesce(
+                func.avg(
+                    case(
+                        (
+                            Order.status == "COMPLETED",
+                            Order.total,
+                        ),
+                        else_=None,
+                    )
+                ),
+                0,
+            ).label(
+                "average_order_value"
+            ),
+        ).where(
+            Order.tenant_id == tenant_id,
+            Order.created_at >= start_at,
+            Order.created_at < end_at,
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        row = self.db.execute(statement).one()
+
+        return {
+            "total_order_count": int(
+                row.total_order_count or 0
+            ),
+            "completed_order_count": int(
+                row.completed_order_count or 0
+            ),
+            "cancelled_order_count": int(
+                row.cancelled_order_count or 0
+            ),
+            "total_sales": row.total_sales or 0,
+            "average_order_value": (
+                row.average_order_value or 0
+            ),
+        }

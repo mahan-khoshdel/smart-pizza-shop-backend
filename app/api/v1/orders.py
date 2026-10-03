@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from datetime import datetime
+from datetime import date, datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from app.schemas.kitchen import (
 )
 from app.schemas.order import (
     BusyHoursAnalysisResponse,
+    DailyBusinessSummaryResponse,
     KitchenPerformanceResponse,
     KitchenWorkloadResponse,
     OrderCreate,
@@ -38,6 +39,7 @@ from app.services.order import (
     create_order,
     get_busy_hours,
     get_customer_sales_performance,
+    get_daily_business_summary,
     get_kitchen_orders,
     get_kitchen_performance,
     get_kitchen_performance_summary,
@@ -549,6 +551,30 @@ def sales_by_weekday_hour_endpoint(
         branch_id=branch_id,
         start_date=start_date,
         end_date=end_date,
+    )
+    
+    
+@router.get(
+    "/daily-business-summary",
+    response_model=DailyBusinessSummaryResponse,
+)
+def daily_business_summary_endpoint(
+    target_date: date = Query(...),
+    branch_id: UUID | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(
+        get_current_user_data
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the main business KPIs for a specific day.
+    """
+
+    return get_daily_business_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        target_date=target_date,
+        branch_id=branch_id,
     )
     
 

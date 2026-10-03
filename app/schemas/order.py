@@ -241,3 +241,21 @@ class SalesByWeekdayHourResponse(BaseModel):
     completed_order_count: int
     total_sales: Decimal
     average_order_value: Decimal
+    
+    
+class DailyBusinessSummaryResponse(BaseModel):
+    """
+    Main business KPIs for a specific day.
+    """
+
+    date: date
+    branch_id: UUID | None
+    total_order_count: int
+    completed_order_count: int
+    cancelled_order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal
+    busiest_hour: int | None
+    busiest_hour_order_count: int
+    top_sales_hour: int | None
+    top_sales_hour_total_sales: Decimal

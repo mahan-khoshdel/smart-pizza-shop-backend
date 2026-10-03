@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from decimal import Decimal
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.services.inventory import consume_inventory
@@ -2034,3 +2034,102 @@ def get_sales_by_weekday_hour(
         start_date=start_date,
         end_date=end_date,
     )
+    
+    
+def get_daily_business_summary(
+    db: Session,
+    tenant_id: UUID,
+    target_date: date,
+    branch_id: UUID | None = None,
+) -> dict:
+    """
+    Return the main business KPIs for a specific day.
+
+    The current implementation interprets the day in UTC.
+    Tenant-specific timezone support will be introduced later.
+    """
+
+    start_at = datetime.combine(
+        target_date,
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+    end_at = start_at + timedelta(days=1)
+
+    repository = OrderRepository(db)
+
+    summary = repository.get_daily_business_summary(
+        tenant_id=tenant_id,
+        start_at=start_at,
+        end_at=end_at,
+        branch_id=branch_id,
+    )
+
+    hourly_rows = repository.get_sales_by_hour(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_at,
+        end_date=end_at,
+    )
+
+    busiest_hour = None
+    busiest_hour_order_count = 0
+
+    top_sales_hour = None
+    top_sales_hour_total_sales = Decimal("0")
+
+    if hourly_rows:
+        busiest = sorted(
+            hourly_rows,
+            key=lambda row: (
+                -row["completed_order_count"],
+                -row["total_sales"],
+                row["hour"],
+            ),
+        )[0]
+
+        busiest_hour = busiest["hour"]
+        busiest_hour_order_count = (
+            busiest["completed_order_count"]
+        )
+
+        top_sales = sorted(
+            hourly_rows,
+            key=lambda row: (
+                -row["total_sales"],
+                -row["completed_order_count"],
+                row["hour"],
+            ),
+        )[0]
+
+        top_sales_hour = top_sales["hour"]
+        top_sales_hour_total_sales = (
+            top_sales["total_sales"]
+        )
+
+    return {
+        "date": target_date,
+        "branch_id": branch_id,
+        "total_order_count": (
+            summary["total_order_count"]
+        ),
+        "completed_order_count": (
+            summary["completed_order_count"]
+        ),
+        "cancelled_order_count": (
+            summary["cancelled_order_count"]
+        ),
+        "total_sales": summary["total_sales"],
+        "average_order_value": (
+            summary["average_order_value"]
+        ),
+        "busiest_hour": busiest_hour,
+        "busiest_hour_order_count": (
+            busiest_hour_order_count
+        ),
+        "top_sales_hour": top_sales_hour,
+        "top_sales_hour_total_sales": (
+            top_sales_hour_total_sales
+        ),
+    }
