@@ -161,3 +161,14 @@ class OrderProductSalesPerformanceResponse(BaseModel):
     sold_quantity: int
     order_count: int
     total_sales: Decimal
+    
+    
+class OrderCustomerSalesPerformanceResponse(BaseModel):
+    """
+    Sales performance for a customer.
+    """
+
+    customer_id: UUID
+    order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal

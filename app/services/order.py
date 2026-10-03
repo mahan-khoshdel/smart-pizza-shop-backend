@@ -1844,3 +1844,26 @@ def get_product_sales_performance(
         start_date=start_date,
         end_date=end_date,
     )
+    
+    
+def get_customer_sales_performance(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """
+    Return sales performance for each customer.
+
+    Only completed orders with a customer are included.
+    """
+
+    repository = OrderRepository(db)
+
+    return repository.get_customer_sales_performance(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )

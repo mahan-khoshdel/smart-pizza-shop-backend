@@ -18,6 +18,7 @@ from app.schemas.order import (
     KitchenPerformanceResponse,
     KitchenWorkloadResponse,
     OrderCreate,
+    OrderCustomerSalesPerformanceResponse,
     OrderIngredientRequirementsResponse,
     OrderProductSalesPerformanceResponse,
     OrderResponse,
@@ -30,6 +31,7 @@ from app.services.order import (
     cancel_order,
     consume_order_inventory,
     create_order,
+    get_customer_sales_performance,
     get_kitchen_orders,
     get_kitchen_performance,
     get_kitchen_performance_summary,
@@ -378,6 +380,30 @@ def product_sales_performance_endpoint(
     """
 
     return get_product_sales_performance(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    
+@router.get(
+    "/customer-sales-performance",
+    response_model=list[OrderCustomerSalesPerformanceResponse],
+)
+def customer_sales_performance_endpoint(
+    branch_id: UUID | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    current_user: dict[str, UUID] = Depends(get_current_user_data),
+    db: Session = Depends(get_db),
+):
+    """
+    Return sales performance for each customer.
+    """
+
+    return get_customer_sales_performance(
         db=db,
         tenant_id=current_user["tenant_id"],
         branch_id=branch_id,
