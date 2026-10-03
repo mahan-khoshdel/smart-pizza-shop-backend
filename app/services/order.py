@@ -2013,3 +2013,24 @@ def get_busy_hours(
         "busiest_hours": busiest_hours,
         "top_sales_hours": top_sales_hours,
     }
+    
+    
+def get_sales_by_weekday_hour(
+    db: Session,
+    tenant_id: UUID,
+    branch_id: UUID | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> list[dict]:
+    """
+    Return completed sales grouped by weekday and hour.
+    """
+
+    repository = OrderRepository(db)
+
+    return repository.get_sales_by_weekday_hour(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        start_date=start_date,
+        end_date=end_date,
+    )

@@ -229,3 +229,15 @@ class BusyHoursAnalysisResponse(BaseModel):
     average_orders_per_active_hour: float
     busiest_hours: list[BusyHourResponse]
     top_sales_hours: list[BusyHourResponse]
+    
+    
+class SalesByWeekdayHourResponse(BaseModel):
+    """
+    Completed sales performance grouped by weekday and hour.
+    """
+
+    weekday: int
+    hour: int
+    completed_order_count: int
+    total_sales: Decimal
+    average_order_value: Decimal

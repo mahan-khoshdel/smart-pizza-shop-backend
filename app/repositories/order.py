@@ -815,3 +815,91 @@ class OrderRepository:
             }
             for row in rows
         ]
+        
+    def get_sales_by_weekday_hour(
+        self,
+        tenant_id: UUID,
+        branch_id: UUID | None = None,
+        start_date=None,
+        end_date=None,
+    ) -> list[dict]:
+        """
+        Return completed sales grouped by weekday and hour.
+
+        Weekday values follow PostgreSQL DOW:
+        0 = Sunday, 1 = Monday, ..., 6 = Saturday.
+
+        Only completed orders are included.
+        """
+
+        weekday_expression = func.extract(
+            "dow",
+            Order.created_at,
+        ).label("weekday")
+
+        hour_expression = func.extract(
+            "hour",
+            Order.created_at,
+        ).label("hour")
+
+        statement = (
+            select(
+                weekday_expression,
+                hour_expression,
+                func.count(Order.id).label(
+                    "completed_order_count"
+                ),
+                func.coalesce(
+                    func.sum(Order.total),
+                    0,
+                ).label("total_sales"),
+                func.coalesce(
+                    func.avg(Order.total),
+                    0,
+                ).label("average_order_value"),
+            )
+            .where(
+                Order.tenant_id == tenant_id,
+                Order.status == "COMPLETED",
+            )
+            .group_by(
+                weekday_expression,
+                hour_expression,
+            )
+            .order_by(
+                weekday_expression.asc(),
+                hour_expression.asc(),
+            )
+        )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id,
+            )
+
+        if start_date is not None:
+            statement = statement.where(
+                Order.created_at >= start_date,
+            )
+
+        if end_date is not None:
+            statement = statement.where(
+                Order.created_at <= end_date,
+            )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            {
+                "weekday": int(row.weekday or 0),
+                "hour": int(row.hour or 0),
+                "completed_order_count": int(
+                    row.completed_order_count or 0
+                ),
+                "total_sales": row.total_sales or 0,
+                "average_order_value": (
+                    row.average_order_value or 0
+                ),
+            }
+            for row in rows
+        ]
