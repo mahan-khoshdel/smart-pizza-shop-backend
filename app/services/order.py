@@ -2133,3 +2133,89 @@ def get_daily_business_summary(
             top_sales_hour_total_sales
         ),
     }
+    
+    
+def get_business_dashboard_summary(
+    db: Session,
+    tenant_id: UUID,
+    target_date: date,
+    branch_id: UUID,
+) -> dict:
+    """
+    Return a combined business dashboard summary
+    for a specific branch and day.
+
+    The summary combines:
+    - daily business KPIs
+    - current kitchen workload
+    """
+
+    daily_summary = get_daily_business_summary(
+        db=db,
+        tenant_id=tenant_id,
+        target_date=target_date,
+        branch_id=branch_id,
+    )
+
+    kitchen_summary = get_kitchen_workload(
+        db=db,
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+    )
+
+    return {
+        "date": target_date,
+        "branch_id": branch_id,
+
+        "total_order_count": (
+            daily_summary["total_order_count"]
+        ),
+        "completed_order_count": (
+            daily_summary["completed_order_count"]
+        ),
+        "cancelled_order_count": (
+            daily_summary["cancelled_order_count"]
+        ),
+
+        "total_sales": (
+            daily_summary["total_sales"]
+        ),
+        "average_order_value": (
+            daily_summary["average_order_value"]
+        ),
+
+        "busiest_hour": (
+            daily_summary["busiest_hour"]
+        ),
+        "busiest_hour_order_count": (
+            daily_summary["busiest_hour_order_count"]
+        ),
+
+        "top_sales_hour": (
+            daily_summary["top_sales_hour"]
+        ),
+        "top_sales_hour_total_sales": (
+            daily_summary["top_sales_hour_total_sales"]
+        ),
+
+        "kitchen": {
+            "preparing_count": (
+                kitchen_summary["preparing_count"]
+            ),
+            "ready_count": (
+                kitchen_summary["ready_count"]
+            ),
+            "active_count": (
+                kitchen_summary["active_count"]
+            ),
+            "kitchen_capacity": (
+                kitchen_summary["kitchen_capacity"]
+            ),
+            "capacity_available": (
+                kitchen_summary["capacity_available"]
+            ),
+            "is_at_capacity": (
+                kitchen_summary["is_at_capacity"]
+            ),
+        },
+    }

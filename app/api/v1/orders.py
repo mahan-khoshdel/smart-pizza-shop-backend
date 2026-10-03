@@ -15,6 +15,7 @@ from app.schemas.kitchen import (
     KitchenPerformanceSummaryResponse,
 )
 from app.schemas.order import (
+    BusinessDashboardSummaryResponse,
     BusyHoursAnalysisResponse,
     DailyBusinessSummaryResponse,
     KitchenPerformanceResponse,
@@ -37,6 +38,7 @@ from app.services.order import (
     cancel_order,
     consume_order_inventory,
     create_order,
+    get_business_dashboard_summary,
     get_busy_hours,
     get_customer_sales_performance,
     get_daily_business_summary,
@@ -571,6 +573,31 @@ def daily_business_summary_endpoint(
     """
 
     return get_daily_business_summary(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        target_date=target_date,
+        branch_id=branch_id,
+    )
+    
+    
+@router.get(
+    "/business-dashboard-summary",
+    response_model=BusinessDashboardSummaryResponse,
+)
+def business_dashboard_summary_endpoint(
+    target_date: date = Query(...),
+    branch_id: UUID = Query(...),
+    current_user: dict[str, UUID] = Depends(
+        get_current_user_data
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the combined business dashboard summary
+    for a specific branch and day.
+    """
+
+    return get_business_dashboard_summary(
         db=db,
         tenant_id=current_user["tenant_id"],
         target_date=target_date,
