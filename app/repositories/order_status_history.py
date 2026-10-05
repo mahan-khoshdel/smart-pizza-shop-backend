@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -27,6 +28,7 @@ class OrderStatusHistoryRepository:
             order_id=order_id,
             from_status=from_status,
             to_status=to_status,
+            changed_at=datetime.now(timezone.utc),
             note=note,
         )
 
