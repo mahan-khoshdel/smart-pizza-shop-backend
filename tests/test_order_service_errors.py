@@ -181,3 +181,51 @@ def test_registered_order_rejects_invalid_status_jump(
             f"REGISTERED -> {invalid_status.value}."
         )
     )
+    
+    
+def test_registered_order_rejects_preparing_when_kitchen_is_at_capacity(
+    db_session: Session,
+    monkeypatch,
+):
+    """
+    Verify that a REGISTERED order cannot move to PREPARING
+    when the kitchen has already reached its capacity.
+    """
+
+    def fake_get_kitchen_workload(
+        self,
+        tenant_id,
+        branch_id,
+    ):
+        return {
+            "preparing_count": 999,
+            "ready_count": 0,
+            "active_count": 999,
+        }
+
+    monkeypatch.setattr(
+        OrderRepository,
+        "get_kitchen_workload",
+        fake_get_kitchen_workload,
+    )
+
+    created_order = _create_registered_order(
+        db=db_session,
+    )
+
+    assert created_order["status"] == OrderStatus.REGISTERED
+
+    with pytest.raises(HTTPException) as exc_info:
+        update_order_status(
+            db=db_session,
+            tenant_id=TENANT_ID,
+            order_id=created_order["id"],
+            new_status=OrderStatus.PREPARING,
+        )
+
+    assert exc_info.value.status_code == 409
+    assert (
+        exc_info.value.detail
+        == "Kitchen capacity reached. Preparing orders: 999. "
+        f"Kitchen capacity: 8."
+    )
