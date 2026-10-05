@@ -151,34 +151,25 @@ def test_complete_order_workflow(db_session):
 
     assert len(history) == 4
 
-    history_transitions = {
-        (
-            _get_history_status(item, "from_status"),
-            _get_history_status(item, "to_status"),
-        )
-        for item in history
-    }
+    assert _get_history_status(
+        history[0],
+        "to_status",
+    ) == OrderStatus.REGISTERED.value
 
-    expected_transitions = {
-        (
-            None,
-            OrderStatus.REGISTERED.value,
-        ),
-        (
-            OrderStatus.REGISTERED.value,
-            OrderStatus.PREPARING.value,
-        ),
-        (
-            OrderStatus.PREPARING.value,
-            OrderStatus.READY.value,
-        ),
-        (
-            OrderStatus.READY.value,
-            OrderStatus.COMPLETED.value,
-        ),
-    }
+    assert _get_history_status(
+        history[1],
+        "to_status",
+    ) == OrderStatus.PREPARING.value
 
-    assert history_transitions == expected_transitions
+    assert _get_history_status(
+        history[2],
+        "to_status",
+    ) == OrderStatus.READY.value
+
+    assert _get_history_status(
+        history[3],
+        "to_status",
+    ) == OrderStatus.COMPLETED.value
 
     # ---------------------------------------------------------
     # 7. Verify repository can see the final state

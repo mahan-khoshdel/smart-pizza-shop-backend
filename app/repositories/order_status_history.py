@@ -3,7 +3,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database.models.order_status_history import OrderStatusHistory
+from app.database.models.order_status_history import (
+    OrderStatusHistory,
+)
 
 
 class OrderStatusHistoryRepository:
@@ -32,10 +34,11 @@ class OrderStatusHistoryRepository:
 
         return history
 
-    def get_by_order_id(
-        self,
-        order_id: UUID,
-    ) -> list[OrderStatusHistory]:
+    def get_by_order_id(self, order_id: UUID):
+        """
+        Return order status history in chronological order.
+        """
+
         statement = (
             select(OrderStatusHistory)
             .where(
