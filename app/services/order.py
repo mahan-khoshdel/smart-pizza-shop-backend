@@ -428,6 +428,112 @@ def get_orders(
 
     return result
 
+
+def get_orders_page(
+    db: Session,
+    tenant_id: UUID,
+    status: OrderStatus | None = None,
+    customer_id: UUID | None = None,
+    branch_id: UUID | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict:
+    """
+    Return a paginated list of orders for the current tenant.
+
+    The total count is calculated using the same filters
+    applied to the paginated order query.
+    """
+
+    if limit <= 0:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Limit must be greater than zero.",
+        )
+
+    if limit > 100:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Limit cannot be greater than 100.",
+        )
+
+    if offset < 0:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Offset cannot be negative.",
+        )
+
+    repository = OrderRepository(db)
+
+    status_value = (
+        status.value
+        if status is not None
+        else None
+    )
+
+    total = repository.count_all(
+        tenant_id=tenant_id,
+        status=status_value,
+        customer_id=customer_id,
+        branch_id=branch_id,
+    )
+
+    orders = repository.get_all(
+        tenant_id=tenant_id,
+        status=status_value,
+        customer_id=customer_id,
+        branch_id=branch_id,
+        limit=limit,
+        offset=offset,
+    )
+
+    result = []
+
+    for order in orders:
+        items = repository.get_items(
+            order_id=order.id,
+        )
+
+        result.append(
+            {
+                "id": order.id,
+                "tenant_id": order.tenant_id,
+                "branch_id": order.branch_id,
+                "customer_id": order.customer_id,
+                "order_number": order.order_number,
+                "order_type": order.order_type,
+                "status": order.status,
+                "note": order.note,
+                "delivery_recipient_name": (
+                    order.delivery_recipient_name
+                ),
+                "delivery_phone": order.delivery_phone,
+                "delivery_address_line": (
+                    order.delivery_address_line
+                ),
+                "delivery_city": order.delivery_city,
+                "delivery_postal_code": (
+                    order.delivery_postal_code
+                ),
+                "subtotal": order.subtotal,
+                "discount_total": order.discount_total,
+                "tax_total": order.tax_total,
+                "total": order.total,
+                "inventory_consumed_at": (
+                    order.inventory_consumed_at
+                ),
+                "items": items,
+            }
+        )
+
+    return {
+        "items": result,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+    
+
 def get_order(
     db: Session,
     tenant_id: UUID,

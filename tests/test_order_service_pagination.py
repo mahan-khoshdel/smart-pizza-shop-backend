@@ -1,9 +1,13 @@
+import pytest
 from uuid import UUID, uuid4
+
+from fastapi import HTTPException
 
 from app.schemas.order import OrderCreate
 from app.services.order import (
     create_order,
     get_orders,
+    get_orders_page,
 )
 
 
@@ -119,4 +123,136 @@ def test_get_orders_pagination_preserves_ordering(
     assert (
         paginated_orders
         == all_orders[1:3]
+    )
+
+
+def test_get_orders_page_returns_pagination_metadata(
+    db_session,
+):
+    result = get_orders_page(
+        db=db_session,
+        tenant_id=TENANT_ID,
+    )
+
+    assert isinstance(result, dict)
+
+    assert "items" in result
+    assert "total" in result
+    assert "limit" in result
+    assert "offset" in result
+
+    assert isinstance(result["items"], list)
+    assert isinstance(result["total"], int)
+
+    assert result["limit"] == 20
+    assert result["offset"] == 0
+
+
+def test_get_orders_page_respects_limit(
+    db_session,
+):
+    _create_order(db_session)
+    _create_order(db_session)
+    _create_order(db_session)
+
+    result = get_orders_page(
+        db=db_session,
+        tenant_id=TENANT_ID,
+        limit=1,
+    )
+
+    assert len(result["items"]) <= 1
+    assert result["limit"] == 1
+
+
+def test_get_orders_page_respects_offset(
+    db_session,
+):
+    _create_order(db_session)
+    _create_order(db_session)
+    _create_order(db_session)
+
+    result = get_orders_page(
+        db=db_session,
+        tenant_id=TENANT_ID,
+        limit=1,
+        offset=1,
+    )
+
+    assert result["limit"] == 1
+    assert result["offset"] == 1
+    assert len(result["items"]) <= 1
+
+
+def test_get_orders_page_total_ignores_pagination(
+    db_session,
+):
+    _create_order(db_session)
+    _create_order(db_session)
+    _create_order(db_session)
+
+    first_page = get_orders_page(
+        db=db_session,
+        tenant_id=TENANT_ID,
+        limit=1,
+        offset=0,
+    )
+
+    second_page = get_orders_page(
+        db=db_session,
+        tenant_id=TENANT_ID,
+        limit=1,
+        offset=1,
+    )
+
+    assert first_page["total"] == second_page["total"]
+
+
+@pytest.mark.parametrize(
+    ("limit", "expected_detail"),
+    [
+        (
+            0,
+            "Limit must be greater than zero.",
+        ),
+        (
+            -1,
+            "Limit must be greater than zero.",
+        ),
+        (
+            101,
+            "Limit cannot be greater than 100.",
+        ),
+    ],
+)
+def test_get_orders_page_rejects_invalid_limit(
+    db_session,
+    limit,
+    expected_detail,
+):
+    with pytest.raises(HTTPException) as exc_info:
+        get_orders_page(
+            db=db_session,
+            tenant_id=TENANT_ID,
+            limit=limit,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == expected_detail
+
+
+def test_get_orders_page_rejects_negative_offset(
+    db_session,
+):
+    with pytest.raises(HTTPException) as exc_info:
+        get_orders_page(
+            db=db_session,
+            tenant_id=TENANT_ID,
+            offset=-1,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert (
+        exc_info.value.detail
+        == "Offset cannot be negative."
     )
