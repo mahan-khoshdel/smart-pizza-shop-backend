@@ -57,6 +57,8 @@ class OrderRepository:
         status: str | None = None,
         customer_id: UUID | None = None,
         branch_id: UUID | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Order]:
         statement = select(Order).where(
             Order.tenant_id == tenant_id
@@ -78,8 +80,15 @@ class OrderRepository:
             )
 
         statement = statement.order_by(
-            Order.created_at.desc()
+            Order.created_at.desc(),
+            Order.id.desc(),
         )
+
+        if offset > 0:
+            statement = statement.offset(offset)
+
+        if limit is not None:
+            statement = statement.limit(limit)
 
         return list(
             self.db.scalars(statement).all()

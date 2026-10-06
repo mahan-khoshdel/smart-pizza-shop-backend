@@ -341,12 +341,16 @@ def get_orders(
     status: OrderStatus | None = None,
     customer_id: UUID | None = None,
     branch_id: UUID | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict]:
     """
     Return orders for the current tenant.
 
     Optional filters can be applied by status,
     customer, and branch.
+
+    Pagination can be controlled using limit and offset.
     """
 
     order_repository = OrderRepository(db)
@@ -360,6 +364,8 @@ def get_orders(
         ),
         customer_id=customer_id,
         branch_id=branch_id,
+        limit=limit,
+        offset=offset,
     )
 
     result = []
