@@ -87,3 +87,33 @@ def test_product_repository_get_all_returns_sorted_tenant_products(
     names = [product.name for product in products]
 
     assert names == sorted(names)
+    
+    
+def test_product_repository_get_by_id_returns_none_for_missing_product(
+    db_session,
+):
+    repository = ProductRepository(db_session)
+
+    missing_product_id = UUID(
+        "00000000-0000-0000-0000-000000000099"
+    )
+
+    product = repository.get_by_id(
+        product_id=missing_product_id,
+        tenant_id=TENANT_ID,
+    )
+
+    assert product is None
+
+
+def test_product_repository_get_by_name_returns_none_for_missing_product(
+    db_session,
+):
+    repository = ProductRepository(db_session)
+
+    product = repository.get_by_name(
+        name="THIS-PRODUCT-DOES-NOT-EXIST",
+        tenant_id=TENANT_ID,
+    )
+
+    assert product is None
