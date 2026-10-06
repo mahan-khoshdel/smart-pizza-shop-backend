@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from fastapi import status as http_status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from decimal import Decimal
@@ -353,6 +354,24 @@ def get_orders(
     Pagination can be controlled using limit and offset.
     """
 
+    if limit is not None and limit <= 0:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Limit must be greater than zero.",
+        )
+
+    if limit is not None and limit > 100:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Limit cannot be greater than 100.",
+        )
+
+    if offset < 0:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Offset cannot be negative.",
+        )
+        
     order_repository = OrderRepository(db)
 
     orders = order_repository.get_all(
