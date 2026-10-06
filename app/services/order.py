@@ -340,12 +340,13 @@ def get_orders(
     tenant_id: UUID,
     status: OrderStatus | None = None,
     customer_id: UUID | None = None,
+    branch_id: UUID | None = None,
 ) -> list[dict]:
     """
     Return orders for the current tenant.
 
-    Optional filters can be used to restrict results by
-    order status or customer.
+    Optional filters can be applied by status,
+    customer, and branch.
     """
 
     order_repository = OrderRepository(db)
@@ -358,6 +359,7 @@ def get_orders(
             else None
         ),
         customer_id=customer_id,
+        branch_id=branch_id,
     )
 
     result = []

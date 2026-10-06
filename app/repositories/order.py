@@ -56,12 +56,8 @@ class OrderRepository:
         tenant_id: UUID,
         status: str | None = None,
         customer_id: UUID | None = None,
+        branch_id: UUID | None = None,
     ) -> list[Order]:
-        """
-        Return orders for a tenant with optional status
-        and customer filters.
-        """
-
         statement = select(Order).where(
             Order.tenant_id == tenant_id
         )
@@ -74,6 +70,11 @@ class OrderRepository:
         if customer_id is not None:
             statement = statement.where(
                 Order.customer_id == customer_id
+            )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id
             )
 
         statement = statement.order_by(
