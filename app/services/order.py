@@ -339,19 +339,25 @@ def get_orders(
     db: Session,
     tenant_id: UUID,
     status: OrderStatus | None = None,
+    customer_id: UUID | None = None,
 ) -> list[dict]:
     """
     Return orders for the current tenant.
 
-    When status is provided, only orders with that status
-    are returned.
+    Optional filters can be used to restrict results by
+    order status or customer.
     """
 
     order_repository = OrderRepository(db)
 
     orders = order_repository.get_all(
         tenant_id=tenant_id,
-        status=status.value if status is not None else None,
+        status=(
+            status.value
+            if status is not None
+            else None
+        ),
+        customer_id=customer_id,
     )
 
     result = []
@@ -371,22 +377,29 @@ def get_orders(
                 "order_type": order.order_type,
                 "status": order.status,
                 "note": order.note,
-                "delivery_recipient_name": order.delivery_recipient_name,
+                "delivery_recipient_name": (
+                    order.delivery_recipient_name
+                ),
                 "delivery_phone": order.delivery_phone,
-                "delivery_address_line": order.delivery_address_line,
+                "delivery_address_line": (
+                    order.delivery_address_line
+                ),
                 "delivery_city": order.delivery_city,
-                "delivery_postal_code": order.delivery_postal_code,
+                "delivery_postal_code": (
+                    order.delivery_postal_code
+                ),
                 "subtotal": order.subtotal,
                 "discount_total": order.discount_total,
                 "tax_total": order.tax_total,
                 "total": order.total,
-                "inventory_consumed_at": order.inventory_consumed_at,
+                "inventory_consumed_at": (
+                    order.inventory_consumed_at
+                ),
                 "items": items,
             }
         )
 
     return result
-
 
 def get_order(
     db: Session,

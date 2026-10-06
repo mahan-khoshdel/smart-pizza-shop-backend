@@ -55,21 +55,34 @@ class OrderRepository:
         self,
         tenant_id: UUID,
         status: str | None = None,
+        customer_id: UUID | None = None,
     ) -> list[Order]:
+        """
+        Return orders for a tenant with optional status
+        and customer filters.
+        """
+
         statement = select(Order).where(
-            Order.tenant_id == tenant_id,
+            Order.tenant_id == tenant_id
         )
 
         if status is not None:
             statement = statement.where(
-                Order.status == status,
+                Order.status == status
+            )
+
+        if customer_id is not None:
+            statement = statement.where(
+                Order.customer_id == customer_id
             )
 
         statement = statement.order_by(
-            Order.created_at.desc(),
+            Order.created_at.desc()
         )
 
-        return list(self.db.scalars(statement).all())
+        return list(
+            self.db.scalars(statement).all()
+        )
  
     def get_kitchen_orders(
         self,
