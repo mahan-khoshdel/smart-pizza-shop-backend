@@ -202,3 +202,97 @@ def test_all_product_api_operations_define_responses():
             f"Product API operation has no response definitions: "
             f"{method.upper()} {path}"
         )
+
+
+def test_all_product_api_operations_define_operation_ids():
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+
+    openapi = response.json()
+
+    operations = _get_product_operations(openapi)
+
+    assert operations
+
+    for path, method, operation in operations:
+        assert operation.get("operationId"), (
+            f"Product API operation has no operationId: "
+            f"{method.upper()} {path}"
+        )
+
+
+def test_all_product_api_operations_define_summaries():
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+
+    openapi = response.json()
+
+    operations = _get_product_operations(openapi)
+
+    assert operations
+
+    for path, method, operation in operations:
+        assert operation.get("summary"), (
+            f"Product API operation has no summary: "
+            f"{method.upper()} {path}"
+        )
+
+
+def test_all_product_api_operations_define_tags():
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+
+    openapi = response.json()
+
+    operations = _get_product_operations(openapi)
+
+    assert operations
+
+    for path, method, operation in operations:
+        assert operation.get("tags"), (
+            f"Product API operation has no tags: "
+            f"{method.upper()} {path}"
+        )
+
+
+def test_product_create_operation_defines_request_body_and_success_response():
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+
+    openapi = response.json()
+
+    post_operations = [
+        (path, operation)
+        for path, method, operation
+        in _get_product_operations(openapi)
+        if method == "post"
+    ]
+
+    assert post_operations, (
+        "No POST Product API operation "
+        "was found in OpenAPI."
+    )
+
+    for path, operation in post_operations:
+        assert operation.get("requestBody"), (
+            f"Product POST operation has no request body: "
+            f"{path}"
+        )
+
+        responses = operation.get("responses", {})
+
+        success_response_codes = {
+            code
+            for code in responses
+            if code.isdigit()
+            and 200 <= int(code) < 300
+        }
+
+        assert success_response_codes, (
+            f"Product POST operation has no 2xx response: "
+            f"{path}"
+        )
