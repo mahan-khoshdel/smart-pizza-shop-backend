@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from app.database.models.order import OrderStatus
