@@ -52,7 +52,6 @@ from app.services.order import (
     get_kitchen_waiting_queue,
     get_kitchen_workload,
     get_order,
-    get_orders,
     get_orders_page,
     get_order_ingredient_requirements,
     get_order_sales_summary,
