@@ -93,6 +93,46 @@ class OrderRepository:
         return list(
             self.db.scalars(statement).all()
         )
+        
+    def count_all(
+        self,
+        tenant_id: UUID,
+        status: str | None = None,
+        customer_id: UUID | None = None,
+        branch_id: UUID | None = None,
+    ) -> int:
+        """
+        Return the total number of orders for the current tenant.
+
+        Optional filters can be applied by status,
+        customer, and branch.
+
+        Pagination parameters such as limit and offset
+        are intentionally not applied to the count.
+        """
+
+        statement = select(
+            func.count(Order.id)
+        ).where(
+            Order.tenant_id == tenant_id
+        )
+
+        if status is not None:
+            statement = statement.where(
+                Order.status == status
+            )
+
+        if customer_id is not None:
+            statement = statement.where(
+                Order.customer_id == customer_id
+            )
+
+        if branch_id is not None:
+            statement = statement.where(
+                Order.branch_id == branch_id
+            )
+
+        return self.db.scalar(statement) or 0
  
     def get_kitchen_orders(
         self,
