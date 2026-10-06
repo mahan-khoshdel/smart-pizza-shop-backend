@@ -140,3 +140,28 @@ def test_get_products_is_tenant_scoped(db_session):
     )
 
     assert other_tenant_products == []
+    
+    
+def test_create_product_rejects_category_from_other_tenant(
+    db_session,
+):
+    category_id = _get_existing_category_id(
+        db=db_session,
+        tenant_id=TENANT_ID,
+    )
+
+    product_data = ProductCreate(
+        category_id=category_id,
+        name=f"TEST-CROSS-TENANT-{uuid4().hex[:8]}",
+        description="Cross-tenant category test.",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        create_product(
+            db=db_session,
+            tenant_id=FAKE_OTHER_TENANT_ID,
+            data=product_data,
+        )
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Category not found."
