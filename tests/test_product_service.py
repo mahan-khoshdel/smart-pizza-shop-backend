@@ -12,8 +12,14 @@ from app.schemas.product import ProductCreate
 from app.services.product import create_product, get_products
 
 
-TENANT_ID = UUID("25291ef5-0240-4042-aabc-b92c5aa4957a")
-FAKE_OTHER_TENANT_ID = UUID("00000000-0000-0000-0000-000000000001")
+TENANT_ID = UUID(
+    "25291ef5-0240-4042-aabc-b92c5aa4957a"
+)
+
+FAKE_OTHER_TENANT_ID = UUID(
+    "00000000-0000-0000-0000-000000000001"
+)
+
 NON_EXISTENT_CATEGORY_ID = UUID(
     "00000000-0000-0000-0000-000000000088"
 )
@@ -129,6 +135,8 @@ def test_get_products_is_tenant_scoped(db_session):
         tenant_id=TENANT_ID,
     )
 
+    assert tenant_products
+
     assert all(
         product.tenant_id == TENANT_ID
         for product in tenant_products
@@ -140,8 +148,8 @@ def test_get_products_is_tenant_scoped(db_session):
     )
 
     assert other_tenant_products == []
-    
-    
+
+
 def test_create_product_rejects_category_from_other_tenant(
     db_session,
 ):
@@ -165,3 +173,14 @@ def test_create_product_rejects_category_from_other_tenant(
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail == "Category not found."
+
+
+def test_get_products_returns_empty_list_for_unknown_tenant(
+    db_session,
+):
+    products = get_products(
+        db=db_session,
+        tenant_id=FAKE_OTHER_TENANT_ID,
+    )
+
+    assert products == []
