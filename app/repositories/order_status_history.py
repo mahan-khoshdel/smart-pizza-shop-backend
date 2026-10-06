@@ -1,6 +1,6 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
-from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,9 +36,15 @@ class OrderStatusHistoryRepository:
 
         return history
 
-    def get_by_order_id(self, order_id: UUID):
+    def get_by_order_id(
+        self,
+        order_id: UUID,
+    ) -> list[OrderStatusHistory]:
         """
         Return order status history in chronological order.
+
+        History is ordered by changed time first and
+        history ID second as a deterministic tie-breaker.
         """
 
         statement = (
@@ -52,4 +58,6 @@ class OrderStatusHistoryRepository:
             )
         )
 
-        return list(self.db.scalars(statement).all())
+        return list(
+            self.db.scalars(statement).all()
+        )
