@@ -256,3 +256,51 @@ def test_get_orders_page_rejects_negative_offset(
         exc_info.value.detail
         == "Offset cannot be negative."
     )
+    
+    
+def test_get_orders_page_returns_empty_items_when_offset_is_past_end(
+    db_session,
+):
+    """
+    Verify that an offset beyond the available orders
+    returns an empty page while preserving the total count.
+    """
+
+    _create_order(db_session)
+    _create_order(db_session)
+
+    result = get_orders_page(
+        db=db_session,
+        tenant_id=TENANT_ID,
+        limit=1,
+        offset=1000,
+    )
+
+    assert result["items"] == []
+    assert result["total"] >= 2
+    assert result["limit"] == 1
+    assert result["offset"] == 1000
+
+
+def test_get_orders_page_returns_all_available_items_when_limit_exceeds_total(
+    db_session,
+):
+    """
+    Verify that a limit greater than the total number of orders
+    does not create an error and returns all available items.
+    """
+
+    _create_order(db_session)
+    _create_order(db_session)
+
+    result = get_orders_page(
+        db=db_session,
+        tenant_id=TENANT_ID,
+        limit=100,
+        offset=0,
+    )
+
+    assert result["total"] >= 2
+    assert len(result["items"]) <= result["total"]
+    assert result["limit"] == 100
+    assert result["offset"] == 0
