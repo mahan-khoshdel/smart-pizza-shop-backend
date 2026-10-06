@@ -24,6 +24,7 @@ from app.schemas.order import (
     OrderCreate,
     OrderCustomerSalesPerformanceResponse,
     OrderIngredientRequirementsResponse,
+    OrderPaginationResponse,
     OrderProductSalesPerformanceResponse,
     OrderResponse,
     OrderSalesSummaryResponse,
@@ -52,6 +53,7 @@ from app.services.order import (
     get_kitchen_workload,
     get_order,
     get_orders,
+    get_orders_page,
     get_order_ingredient_requirements,
     get_order_sales_summary,
     get_order_sales_trends,
@@ -92,22 +94,55 @@ def create_order_endpoint(
     )
 
 
-@router.get("", response_model=list[OrderResponse])
+@router.get(
+    "",
+    response_model=OrderPaginationResponse,
+    summary="List orders",
+)
 def get_orders_endpoint(
-    status: OrderStatus | None = None,
-    current_user_data: dict = Depends(get_current_user_data),
+    status: OrderStatus | None = Query(
+        default=None,
+        description="Filter orders by status.",
+    ),
+    customer_id: UUID | None = Query(
+        default=None,
+        description="Filter orders by customer.",
+    ),
+    branch_id: UUID | None = Query(
+        default=None,
+        description="Filter orders by branch.",
+    ),
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+        description="Number of orders to return. Maximum is 100.",
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description="Number of matching orders to skip.",
+    ),
+    current_user_data: dict = Depends(
+        get_current_user_data
+    ),
     db: Session = Depends(get_db),
 ):
     """
-    Return orders for the current tenant.
+    Return a paginated list of orders for the current tenant.
 
-    An optional status filter can be used to return only orders
-    with a specific status.
+    Orders can be filtered by status, customer, or branch.
+    Pagination is controlled using limit and offset.
     """
-    return get_orders(
+
+    return get_orders_page(
         db=db,
         tenant_id=current_user_data["tenant_id"],
         status=status,
+        customer_id=customer_id,
+        branch_id=branch_id,
+        limit=limit,
+        offset=offset,
     )
 
 

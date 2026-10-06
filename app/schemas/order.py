@@ -321,3 +321,14 @@ class BusinessRiskMetricsResponse(BaseModel):
     capacity_available: int
     capacity_utilization_percent: float
     is_at_capacity: bool
+    
+    
+class OrderPaginationResponse(BaseModel):
+    """
+    Paginated response containing orders and pagination metadata.
+    """
+
+    items: list[OrderResponse]
+    total: int
+    limit: int
+    offset: int
